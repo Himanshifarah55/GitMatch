@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Confirming your GitMatch account...">
+    <title>Confirming... | GitMatch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background: #020305;
+            background-image: radial-gradient(circle at 50% -20%, rgba(26, 58, 138, 0.18) 0%, transparent 55%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .card {
+            background: rgba(8, 8, 10, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 48px 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.8);
+        }
+        .icon { font-size: 2.5rem; margin-bottom: 20px; display: block; }
+        h1 { font-size: 22px; font-weight: 800; margin-bottom: 10px; letter-spacing: -0.3px; }
+        p { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 28px;
+            background: #1a3a8a;
+            color: white;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #1e40af; }
+    </style>
+</head>
+<body>
+    <div class="card" id="card">
+        <div class="spinner" id="spinner"></div>
+        <h1 id="heading">Confirming your account...</h1>
+        <p id="subtext">Just a moment while we verify your credentials.</p>
+    </div>
+
+    <script src="supabase-client.js"></script>
+    <script>
+        async function handleCallback() {
+            const heading = document.getElementById('heading');
+            const subtext = document.getElementById('subtext');
+            const spinner = document.getElementById('spinner');
+            const card = document.getElementById('card');
+
+            try {
+                await new Promise((r) => setTimeout(r, 700));
+
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (error) throw error;
+
+                if (session) {
+                    spinner.style.display = 'none';
+                    card.insertAdjacentHTML('afterbegin', '<span class="icon">OK</span>');
+                    heading.textContent = "You're signed in!";
+                    subtext.textContent = 'Taking you to your dashboard...';
+                    setTimeout(() => {
+                        window.location.replace('find-issues.html');
+                    }, 1200);
+                } else {
+                    spinner.style.display = 'none';
+                    card.insertAdjacentHTML('afterbegin', '<span class="icon">!</span>');
+                    heading.textContent = 'Link expired or already used';
+                    subtext.innerHTML = 'This link is no longer valid. <a href="login.html" style="color:white;font-weight:700;">Sign in</a> or <a href="signup.html" style="color:white;font-weight:700;">create a new account</a>.';
+                }
+            } catch (err) {
+                console.error('Auth callback error:', err);
+                spinner.style.display = 'none';
+                heading.textContent = 'Something went wrong';
+                subtext.textContent = err.message || 'Could not confirm your account. Please try again.';
+                card.insertAdjacentHTML('beforeend', '<a href="signup.html" class="btn">Back to Sign Up</a>');
+            }
+        }
+
+        handleCallback();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="GitMatch - find open-source GitHub issues perfectly matched to your tech stack and experience level.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitMatch - Find Your Perfect Open Source Match</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --mx: 50%;
+            --my: 50%;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #020305;
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .navbar-wrapper {
+            width: 100%;
+            padding-top: 24px;
+            display: flex;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .navbar-pill {
+            position: relative;
+            width: 92%;
+            max-width: 960px;
+            height: 60px;
+            background: rgba(122, 119, 168, 0.082);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 100px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .brand {
+            color: white;
+            font-weight: 800;
+            font-size: 1.25rem;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .desktop-links {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 32px;
+        }
+
+        .nav-link {
+            color: #94a3b8;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover { color: white; }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-nav-login {
+            background: transparent;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: border-color 0.2s;
+        }
+        .btn-nav-login:hover { border-color: rgba(255,255,255,0.4); }
+
+        .btn-nav-signup {
+            background: white;
+            color: #05070a;
+            padding: 8px 20px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+        .btn-nav-signup:hover { transform: scale(1.05); }
+
+        .btn-nav-dashboard {
+            background: rgba(255,255,255,0.08);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 100px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: background 0.2s;
+        }
+        .btn-nav-dashboard:hover { background: rgba(255,255,255,0.14); }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .hamburger span {
+            width: 20px;
+            height: 2px;
+            background-color: white;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+        .hamburger.active span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+        .mobile-menu-card {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            width: 92%;
+            max-width: 960px;
+            background: rgba(13, 17, 23, 0.97);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 5;
+            margin-top: 10px;
+        }
+        .mobile-menu-card.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+        .mobile-link {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 1.05rem;
+            font-weight: 500;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+        .mobile-link:hover { background: rgba(255, 255, 255, 0.05); color: white; }
+
+        .mobile-divider { height: 1px; background: rgba(255,255,255,0.07); }
+
+        .mobile-auth-row {
+            display: flex;
+            gap: 10px;
+        }
+        .mobile-auth-row a {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+        }
+        .mobile-auth-row .mob-login {
+            background: rgba(255,255,255,0.05);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .mobile-auth-row .mob-signup {
+            background: white;
+            color: #05070a;
+        }
+
+        .hero-section {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px 120px 20px;
+            background:
+                radial-gradient(circle at var(--mx) var(--my), rgba(96, 165, 250, 0.12), transparent 24%),
+                radial-gradient(circle at 20% 20%, rgba(29, 78, 216, 0.28), transparent 30%),
+                radial-gradient(circle at 82% 28%, rgba(56, 189, 248, 0.18), transparent 24%),
+                radial-gradient(circle at 72% 72%, rgba(99, 102, 241, 0.18), transparent 24%),
+                linear-gradient(to bottom, #000000, #020617 48%, #0404a2 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        .hero-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 85%);
+            opacity: 0.22;
+            transform: perspective(900px) rotateX(70deg) scale(1.55);
+            transform-origin: top center;
+            animation: gridDrift 18s linear infinite;
+            z-index: 0;
+        }
+
+        .hero-noise {
+            position: absolute;
+            inset: 0;
+            opacity: 0.08;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(255,255,255,0.28) 0 1px, transparent 1px),
+                radial-gradient(circle at 80% 40%, rgba(255,255,255,0.22) 0 1px, transparent 1px),
+                radial-gradient(circle at 35% 70%, rgba(255,255,255,0.18) 0 1px, transparent 1px),
+                radial-gradient(circle at 65% 80%, rgba(255,255,255,0.18) 0 1px, transparent 1px);
+            background-size: 180px 180px;
+            animation: noiseDrift 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero-orb {
+            position: absolute;
+            border-radius: 999px;
+            filter: blur(18px);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .hero-orb-1 {
+            width: 420px;
+            height: 420px;
+            top: 8%;
+            left: -100px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.28) 0%, rgba(59, 130, 246, 0) 70%);
+            animation: orbOne 11s ease-in-out infinite;
+        }
+
+        .hero-orb-2 {
+            width: 320px;
+            height: 320px;
+            top: 18%;
+            right: 8%;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.18) 0%, rgba(96, 165, 250, 0) 72%);
+            animation: orbTwo 13s ease-in-out infinite;
+        }
+
+        .hero-orb-3 {
+            width: 520px;
+            height: 520px;
+            right: -160px;
+            bottom: -90px;
+            background: radial-gradient(circle, rgba(79, 70, 229, 0.24) 0%, rgba(79, 70, 229, 0) 74%);
+            animation: orbThree 15s ease-in-out infinite;
+        }
+
+        .hero-rings {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .hero-rings::before,
+        .hero-rings::after {
+            content: "";
+            position: absolute;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+        }
+
+        .hero-rings::before {
+            width: 540px;
+            height: 540px;
+            top: 8%;
+            right: -120px;
+            animation: ringSpin 24s linear infinite;
+        }
+
+        .hero-rings::after {
+            width: 320px;
+            height: 320px;
+            left: -90px;
+            bottom: 16%;
+            border-color: rgba(96,165,250,0.16);
+            animation: ringSpinReverse 18s linear infinite;
+        }
+
+        .hero-particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .hero-particles span {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.75);
+            box-shadow: 0 0 18px rgba(255,255,255,0.35);
+            opacity: 0.22;
+        }
+
+        .hero-particles span:nth-child(1) { top: 22%; left: 12%; animation: particleFloat 8s ease-in-out infinite; }
+        .hero-particles span:nth-child(2) { top: 28%; left: 76%; animation: particleFloat 10s ease-in-out infinite 1s; }
+        .hero-particles span:nth-child(3) { top: 40%; left: 22%; animation: particleFloat 9s ease-in-out infinite 0.6s; }
+        .hero-particles span:nth-child(4) { top: 48%; left: 84%; animation: particleFloat 11s ease-in-out infinite 0.2s; }
+        .hero-particles span:nth-child(5) { top: 66%; left: 16%; animation: particleFloat 12s ease-in-out infinite 1.3s; }
+        .hero-particles span:nth-child(6) { top: 70%; left: 70%; animation: particleFloat 8.5s ease-in-out infinite 0.8s; }
+        .hero-particles span:nth-child(7) { top: 58%; left: 50%; animation: particleFloat 10.5s ease-in-out infinite 1.5s; }
+        .hero-particles span:nth-child(8) { top: 18%; left: 52%; animation: particleFloat 9.5s ease-in-out infinite 0.4s; }
+
+        .hero-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: 160px;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .hero-badge,
+        .hero-headline,
+        .hero-subtext,
+        .hero-buttons {
+            opacity: 0;
+            transform: translateY(28px);
+        }
+
+        .hero-loaded .hero-badge {
+            animation: heroReveal 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+        }
+
+        .hero-loaded .hero-headline {
+            animation: heroReveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.24s forwards;
+        }
+
+        .hero-loaded .hero-subtext {
+            animation: heroReveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+        }
+
+        .hero-loaded .hero-buttons {
+            animation: heroReveal 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.56s forwards;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            margin-bottom: 24px;
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            border-radius: 100px;
+            padding: 6px 18px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.02) inset;
+        }
+
+        .hero-badge::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 15%, rgba(255,255,255,0.18), transparent 85%);
+            transform: translateX(-140%);
+            animation: badgeShine 5s ease-in-out infinite 1.6s;
+        }
+
+        .badge-text {
+            font-size: 0.875rem;
+            color: #60a5fa;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-headline {
+            font-size: clamp(2.5rem, 8vw, 5.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            color: white;
+            margin-bottom: 24px;
+            text-shadow: 0 0 24px rgba(255,255,255,0.06);
+        }
+
+        .text-gradient {
+            background: linear-gradient(90deg, #60a5fa, #a78bfa, #38bdf8, #60a5fa);
+            background-size: 260% 260%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: textFlow 7s ease-in-out infinite;
+        }
+
+        .hero-subtext {
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            color: #94a3b8;
+            line-height: 1.7;
+            max-width: 620px;
+            margin-bottom: 48px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #05070a;
+            padding: 16px 40px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 1rem;
+            text-decoration: none;
+            box-shadow: 0 0 24px rgba(255, 255, 255, 0.15);
+            transition: transform 0.2s, box-shadow 0.2s;
+            animation: buttonPulse 4s ease-in-out infinite;
+        }
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 32px rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-secondary {
+            padding: 16px 32px;
+            border-radius: 100px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.04);
+            text-decoration: none;
+            transition: border-color 0.2s, background 0.2s, transform 0.2s;
+        }
+        .btn-secondary:hover {
+            border-color: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.07);
+            transform: translateY(-2px);
+        }
+
+
+
+        .hero-loaded .hero-rail {
+            animation: heroReveal 1s cubic-bezier(0.22, 1, 0.36, 1) 0.72s forwards;
+        }
+
+
+        @keyframes heroReveal {
+            0% {
+                opacity: 0;
+                transform: translateY(28px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes gridDrift {
+            0% { transform: perspective(900px) rotateX(70deg) scale(1.55) translateY(0); }
+            100% { transform: perspective(900px) rotateX(70deg) scale(1.55) translateY(64px); }
+        }
+
+        @keyframes noiseDrift {
+            0% { transform: translate3d(0, 0, 0); }
+            50% { transform: translate3d(-10px, 8px, 0); }
+            100% { transform: translate3d(0, 0, 0); }
+        }
+
+        @keyframes orbOne {
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            50% { transform: translate3d(56px, 26px, 0) scale(1.08); }
+        }
+
+        @keyframes orbTwo {
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            50% { transform: translate3d(-42px, 34px, 0) scale(1.05); }
+        }
+
+        @keyframes orbThree {
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            50% { transform: translate3d(-48px, -22px, 0) scale(1.06); }
+        }
+
+        @keyframes ringSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes ringSpinReverse {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        @keyframes particleFloat {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.16; }
+            50% { transform: translateY(-16px) scale(1.25); opacity: 0.38; }
+        }
+
+        @keyframes badgeShine {
+            0%, 74%, 100% { transform: translateX(-140%); }
+            88% { transform: translateX(170%); }
+        }
+
+        @keyframes textFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes chipFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-7px); }
+        }
+
+        @keyframes buttonPulse {
+            0%, 100% { box-shadow: 0 0 24px rgba(255,255,255,0.14); }
+            50% { box-shadow: 0 0 34px rgba(255,255,255,0.22); }
+        }
+
+        .how-section {
+            width: 100%;
+            padding: 120px 20px;
+            background-color: #020305;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .section-label {
+            color: #3b82f6;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+        }
+
+        .section-heading {
+            color: white;
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 800;
+            text-align: center;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .section-subtext {
+            color: #94a3b8;
+            font-size: 1rem;
+            text-align: center;
+            max-width: 520px;
+            line-height: 1.6;
+            margin-bottom: 72px;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .step-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 24px;
+            padding: 32px 28px;
+            transition: border-color 0.3s, transform 0.3s;
+        }
+        .step-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-4px);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #60a5fa;
+            margin-bottom: 20px;
+        }
+
+        .step-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .step-card p {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .tech-stack-section {
+            width: 100%;
+            padding: 100px 0;
+            background-color: #020305;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .tech-header {
+            margin-bottom: 52px;
+            text-align: center;
+        }
+
+        .logo-slider {
+            width: 100%;
+            mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+        }
+
+        .logo-slide-track {
+            display: flex;
+            width: max-content;
+            animation: marquee-scroll 45s linear infinite;
+        }
+
+        .slide {
+            flex-shrink: 0;
+            width: 80px;
+            height: 80px;
+            margin-right: 48px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .slide img {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        @keyframes marquee-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-33.3333%); }
+        }
+
+        .cta-section {
+            width: 100%;
+            padding: 120px 20px;
+            display: flex;
+            justify-content: center;
+            background-color: #020305;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .cta-card {
+            width: 100%;
+            max-width: 700px;
+            background: linear-gradient(135deg, rgba(26,58,138,0.25) 0%, rgba(96,165,250,0.08) 100%);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 32px;
+            padding: 64px 48px;
+            text-align: center;
+        }
+
+        .cta-card h2 {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .cta-card p {
+            color: #94a3b8;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        footer {
+            width: 100%;
+            padding: 32px 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        footer p {
+            color: rgba(255,255,255,0.3);
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 900px) {
+            .desktop-links { display: none; }
+            .hamburger { display: flex; }
+            .btn-nav-login, .btn-nav-signup { display: none; }
+            .hero-buttons { flex-direction: column; width: 100%; padding: 0 20px; }
+            .btn-primary, .btn-secondary { width: 100%; text-align: center; }
+            .hero-container { margin-top: 120px; }
+            .cta-card { padding: 48px 28px; }
+            .hero-rail { bottom: 34px; gap: 10px; }
+            .hero-chip { font-size: 0.75rem; padding: 9px 12px; }
+        }
+
+        @media (max-width: 620px) {
+            .hero-rings::before,
+            .hero-rings::after,
+            .hero-grid {
+                opacity: 0.5;
+            }
+            .hero-chip:nth-child(5) {
+                display: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .hero-grid,
+            .hero-noise,
+            .hero-orb,
+            .hero-rings::before,
+            .hero-rings::after,
+            .hero-particles span,
+            .hero-badge::before,
+            .text-gradient,
+            .btn-primary,
+            .hero-chip,
+            .hero-badge,
+            .hero-headline,
+            .hero-subtext,
+            .hero-buttons,
+            .hero-rail {
+                animation: none !important;
+                transition: none !important;
+            }
+
+            .hero-badge,
+            .hero-headline,
+            .hero-subtext,
+            .hero-buttons,
+            .hero-rail {
+                opacity: 1 !important;
+                transform: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== NAVBAR ========== -->
+    <nav class="navbar-wrapper">
+        <div class="navbar-pill">
+            <a href="index.html" class="brand">GitMatch</a>
+
+            <div class="desktop-links">
+                <a href="explore.html" class="nav-link">Explore</a>
+                <a href="#how-it-works" class="nav-link">How it Works</a>
+            </div>
+
+            <div class="nav-actions" id="nav-actions">
+                <a href="login.html" class="btn-nav-login" id="nav-login-btn">Login</a>
+                <a href="signup.html" class="btn-nav-signup" id="nav-signup-btn">Sign Up</a>
+                <button class="hamburger" id="hamburger" aria-label="Open navigation menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="mobile-menu-card" id="mobile-menu">
+            <a href="explore.html" class="mobile-link">Explore Trending</a>
+            <a href="#how-it-works" class="mobile-link">How it Works</a>
+            <div class="mobile-divider"></div>
+            <div class="mobile-auth-row" id="mobile-auth-row">
+                <a href="login.html" class="mob-login">Login</a>
+                <a href="signup.html" class="mob-signup">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========== HERO ========== -->
+    <section class="hero-section" id="hero-section">
+        <div class="hero-grid"></div>
+        <div class="hero-noise"></div>
+        <div class="hero-orb hero-orb-1"></div>
+        <div class="hero-orb hero-orb-2"></div>
+        <div class="hero-orb hero-orb-3"></div>
+        <div class="hero-rings"></div>
+        <div class="hero-particles" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+        </div>
+
+        <div class="hero-container">
+            <div class="hero-badge">
+                <span class="badge-text">✦ Open Source Simplified</span>
+            </div>
+
+            <h1 class="hero-headline">
+                Find your perfect <br>
+                <span class="text-gradient">Open Source match.</span>
+            </h1>
+
+            <p class="hero-subtext">
+                Stop scrolling through endless repositories. Get matched with GitHub issues that fit your skills and tech stack in seconds.
+            </p>
+
+            <div class="hero-buttons" id="hero-buttons">
+                <a href="signup.html" class="btn-primary" id="hero-cta">Get Started — It's Free</a>
+                <a href="explore.html" class="btn-secondary">Browse Trending Repos</a>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ========== HOW IT WORKS ========== -->
+    <section class="how-section" id="how-it-works">
+        <span class="section-label">How it Works</span>
+        <h2 class="section-heading">Contribute in 3 simple steps</h2>
+        <p class="section-subtext">GitMatch handles the discovery so you can focus on actually writing code.</p>
+
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">01</div>
+                <h3>Build Your Stack</h3>
+                <p>Tell us which languages and frameworks you work with. We support everything from Python to Rust to TypeScript.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">02</div>
+                <h3>Set Your Level</h3>
+                <p>Are you a beginner looking for "good first issues", or an expert who wants meaty enhancements? You choose.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">03</div>
+                <h3>Get Matched</h3>
+                <p>We query GitHub in real time and surface the most relevant open issues for your exact profile — no noise.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== TECH STACK SCROLL ========== -->
+    <section class="tech-stack-section">
+        <div class="tech-header">
+            <span class="section-label">Ecosystems</span>
+            <h2 class="section-heading" style="margin-bottom: 0;">Start contributing to</h2>
+        </div>
+
+        <div class="logo-slider">
+            <div class="logo-slide-track">
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" alt="JavaScript"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" alt="Node.js"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" alt="C++"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original-wordmark.svg" alt="Go"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-original.svg" alt="Rust"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB"></div>
+
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" alt="JavaScript"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" alt="Node.js"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" alt="C++"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original-wordmark.svg" alt="Go"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-original.svg" alt="Rust"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB"></div>
+
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" alt="JavaScript"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" alt="Node.js"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" alt="Python"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" alt="C++"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original-wordmark.svg" alt="Go"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-original.svg" alt="Rust"></div>
+                <div class="slide"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== CTA ========== -->
+    <section class="cta-section">
+        <div class="cta-card">
+            <h2>Ready to make your first contribution?</h2>
+            <p>Join developers who use GitMatch to find meaningful open source work — matched to their exact skill set.</p>
+            <a href="signup.html" class="btn-primary" id="cta-bottom-btn">Create Free Account</a>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer>
+        <p>© 2025 GitMatch. Built for developers, by developers.</p>
+    </footer>
+
+    <script src="supabase-client.js"></script>
+
+    <script>
+        const hamburger = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const heroSection = document.getElementById('hero-section');
+
+        document.body.classList.add('hero-loaded');
+
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            mobileMenu.classList.toggle('open');
+        });
+
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                mobileMenu.classList.remove('open');
+                hamburger.classList.remove('active');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!hamburger.contains(e.target) && !mobileMenu.contains(e.target)) {
+                mobileMenu.classList.remove('open');
+                hamburger.classList.remove('active');
+            }
+        });
+
+        if (window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+            heroSection.addEventListener('pointermove', (e) => {
+                const rect = heroSection.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                heroSection.style.setProperty('--mx', `${x}%`);
+                heroSection.style.setProperty('--my', `${y}%`);
+            });
+
+            heroSection.addEventListener('pointerleave', () => {
+                heroSection.style.setProperty('--mx', '50%');
+                heroSection.style.setProperty('--my', '50%');
+            });
+        }
+
+        window.addEventListener('load', async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    document.getElementById('nav-login-btn').style.display = 'none';
+                    document.getElementById('nav-signup-btn').outerHTML =
+                        '<a href="find-issues.html" class="btn-nav-dashboard">Dashboard</a>';
+
+                    document.getElementById('mobile-auth-row').innerHTML =
+                        '<a href="find-issues.html" style="flex:1;text-align:center;padding:12px;border-radius:12px;font-weight:700;background:rgba(255,255,255,0.08);color:white;text-decoration:none;border:1px solid rgba(255,255,255,0.1);">Go to Dashboard</a>';
+
+                    const heroCta = document.getElementById('hero-cta');
+                    heroCta.textContent = 'Go to Dashboard';
+                    heroCta.href = 'find-issues.html';
+
+                    const ctaBtn = document.getElementById('cta-bottom-btn');
+                    ctaBtn.textContent = 'Go to Dashboard';
+                    ctaBtn.href = 'find-issues.html';
+                }
+            } catch (err) {
+                console.warn('Auth check failed:', err.message);
+            }
+        });
+    </script>
+</body>
+</html>

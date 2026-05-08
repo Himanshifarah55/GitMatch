@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Your saved GitHub issues — review and track your open source backlog.">
+    <title>Saved Issues | GitMatch</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="config.js"></script>
+    <script src="toast.js"></script>
+
+    <style>
+        :root {
+            --royal-blue: #1a3a8a;
+            --royal-blue-hover: #1e40af;
+            --text-main: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: #000212;
+            background-image: radial-gradient(circle at 50% 0%, rgba(26, 58, 138, 0.15) 0%, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* ── NAV ─────────────────────────────────────────── */
+        .navbar-wrapper {
+            width: 100%;
+            padding-top: 20px;
+            display: flex;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding-bottom: 4px;
+        }
+
+        .navbar-pill {
+            width: 90%;
+            max-width: 1200px;
+            height: 58px;
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 100px;
+            padding: 0 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .brand { font-size: 18px; font-weight: 800; color: white; text-decoration: none; letter-spacing: -0.5px; }
+
+        .nav-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 28px;
+        }
+        .nav-center a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        .nav-center a:hover, .nav-center a.active { color: white; }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.05);
+            color: white;
+            padding: 9px 22px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+        .btn-logout:hover { background: rgba(255,255,255,0.1); }
+
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+        }
+        .hamburger span { width: 20px; height: 2px; background: white; border-radius: 2px; transition: 0.3s; }
+        .hamburger.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+        .mobile-drop {
+            position: absolute; top: 100%; left: 50%;
+            transform: translateX(-50%) translateY(-16px);
+            width: 92%; max-width: 1200px;
+            background: rgba(10, 12, 20, 0.97);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px; padding: 24px;
+            display: flex; flex-direction: column; gap: 10px;
+            opacity: 0; visibility: hidden;
+            transition: all 0.3s ease; z-index: 5; margin-top: 8px;
+        }
+        .mobile-drop.open { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .mobile-drop a {
+            color: rgba(255,255,255,0.7); text-decoration: none;
+            font-size: 1rem; font-weight: 600; text-align: center;
+            padding: 10px; border-radius: 8px; transition: 0.2s;
+        }
+        .mobile-drop a:hover { background: rgba(255,255,255,0.05); color: white; }
+        .mobile-drop .mob-logout {
+            margin-top: 4px; padding: 12px;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 10px; color: #fca5a5;
+            font-weight: 700; cursor: pointer;
+            font-family: inherit; font-size: 14px;
+            transition: background 0.2s;
+        }
+        .mobile-drop .mob-logout:hover { background: rgba(239,68,68,0.15); }
+
+        /* ── PAGE LAYOUT ─────────────────────────────────── */
+        .page-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 5% 80px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        .page-header p { color: var(--text-dim); font-size: 14px; margin-top: 5px; }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .count-badge {
+            background: rgba(251,191,36,0.12);
+            border: 1px solid rgba(251,191,36,0.25);
+            color: #fbbf24;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 5px 14px;
+        }
+
+        .btn-clear-all {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            color: #fca5a5;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 7px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+        .btn-clear-all:hover { background: rgba(239,68,68,0.16); }
+
+        /* ── ISSUE LIST ──────────────────────────────────── */
+        .issue-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .issue-card {
+            background: rgba(8,8,10,0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 22px 24px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .issue-card:hover { border-color: rgba(255,255,255,0.2); transform: translateX(2px); }
+
+        .card-body { flex: 1; min-width: 0; }
+
+        .card-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .repo-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            padding: 2px 8px;
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .difficulty-tag {
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 6px;
+            padding: 2px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .difficulty-tag.beginner     { background: rgba(16,185,129,0.1); color: #6ee7b7; }
+        .difficulty-tag.intermediate { background: rgba(59,130,246,0.1);  color: #93c5fd; }
+        .difficulty-tag.expert       { background: rgba(168,85,247,0.1);  color: #d8b4fe; }
+
+        .issue-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .saved-date {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+            flex-shrink: 0;
+        }
+
+        .btn-view {
+            background: var(--royal-blue);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 9px;
+            font-weight: 700;
+            font-size: 12px;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+        .btn-view:hover { background: var(--royal-blue-hover); }
+
+        .btn-remove {
+            background: transparent;
+            border: 1px solid rgba(239,68,68,0.2);
+            color: rgba(239,68,68,0.7);
+            border-radius: 9px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 7px 14px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+        .btn-remove:hover { background: rgba(239,68,68,0.1); color: #fca5a5; }
+
+        /* ── STATE BOXES ─────────────────────────────────── */
+        .state-box {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-dim);
+        }
+        .state-box .icon { font-size: 2.5rem; margin-bottom: 16px; }
+        .state-box p { font-weight: 600; font-size: 15px; }
+        .state-box .sub { font-size: 13px; margin-top: 8px; opacity: 0.6; }
+        .state-box a { color: #60a5fa; text-decoration: none; font-weight: 700; }
+
+        /* ── RESPONSIVE ──────────────────────────────────── */
+        @media (max-width: 900px) {
+            .nav-center { display: none; }
+            .hamburger  { display: flex; }
+            .btn-logout { display: none; }
+        }
+        @media (max-width: 580px) {
+            .issue-card { flex-direction: column; }
+            .card-actions { flex-direction: row; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── NAV ─────────────────────────────────────────── -->
+    <nav class="navbar-wrapper" aria-label="Main navigation">
+        <div class="navbar-pill">
+            <a href="index.html" class="brand">GitMatch</a>
+
+            <div class="nav-center">
+                <a href="find-issues.html">My Matches</a>
+                <a href="explore.html">Trending</a>
+                <a href="saveissue.html" class="active">Saved</a>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button id="logout-btn" class="btn-logout">Logout</button>
+                <button class="hamburger" id="hamburger" aria-label="Open navigation menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="mobile-drop" id="mobile-menu">
+            <a href="find-issues.html">My Matches</a>
+            <a href="explore.html">Trending</a>
+            <a href="saveissue.html">Saved Issues</a>
+            <a href="onboarding.html">Edit Preferences</a>
+            <button class="mob-logout" id="mob-logout-btn">Sign Out</button>
+        </div>
+    </nav>
+
+    <!-- ── CONTENT ─────────────────────────────────────── -->
+    <div class="page-container">
+        <div class="page-header">
+            <div>
+                <h1>Saved Issues</h1>
+                <p>Your open-source contribution backlog.</p>
+            </div>
+            <div class="header-meta">
+                <span class="count-badge" id="count-badge">0 saved</span>
+                <button class="btn-clear-all" id="clearAllBtn" style="display:none;">Clear All</button>
+            </div>
+        </div>
+
+        <div id="issue-list" class="issue-list">
+            <div class="state-box">
+                <div class="icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <p>Loading your saved issues…</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUserId = null;
+
+        // ── Auth logout ──────────────────────────────────────
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            localStorage.removeItem('userPrefs');
+            window.location.replace('login.html');
+        }
+        document.getElementById('logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('mob-logout-btn').addEventListener('click', handleLogout);
+
+        // ── Mobile hamburger ────────────────────────────────
+        (function () {
+            const ham  = document.getElementById('hamburger');
+            const menu = document.getElementById('mobile-menu');
+            ham.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ham.classList.toggle('active');
+                menu.classList.toggle('open');
+            });
+            document.addEventListener('click', (e) => {
+                if (!ham.contains(e.target) && !menu.contains(e.target)) {
+                    ham.classList.remove('active');
+                    menu.classList.remove('open');
+                }
+            });
+            menu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+                ham.classList.remove('active');
+                menu.classList.remove('open');
+            }));
+        })();
+
+        // ── Difficulty helper ────────────────────────────────
+        function difficultyInfo(label) {
+            if (!label) return { text: 'Beginner', cls: 'beginner' };
+            const l = label.toLowerCase();
+            if (l.includes('help wanted') || l === 'intermediate') return { text: 'Intermediate', cls: 'intermediate' };
+            if (l.includes('enhancement') || l === 'expert')       return { text: 'Expert',       cls: 'expert' };
+            return { text: 'Beginner', cls: 'beginner' };
+        }
+
+        // ── Render issues ────────────────────────────────────
+        function renderIssues(issues) {
+            const list = document.getElementById('issue-list');
+            const badge = document.getElementById('count-badge');
+            const clearBtn = document.getElementById('clearAllBtn');
+
+            badge.textContent = `${issues.length} saved`;
+            clearBtn.style.display = issues.length > 0 ? 'inline-block' : 'none';
+
+            if (issues.length === 0) {
+                list.innerHTML = `
+                    <div class="state-box">
+                        <div class="icon">🔖</div>
+                        <p>No saved issues yet.</p>
+                        <p class="sub">Go to <a href="find-issues.html">My Matches</a> and hit ☆ Save on any issue.</p>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = '';
+            issues.forEach(issue => {
+                const diff    = difficultyInfo(issue.difficulty_label);
+                const dateStr = new Date(issue.saved_at).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                });
+
+                const card = document.createElement('article');
+                card.className = 'issue-card';
+                card.dataset.id = issue.github_issue_id;
+
+                // body
+                const body = document.createElement('div');
+                body.className = 'card-body';
+
+                const meta = document.createElement('div');
+                meta.className = 'card-meta';
+
+                const repoLabel = document.createElement('span');
+                repoLabel.className   = 'repo-label';
+                repoLabel.textContent = issue.repo_name;
+                repoLabel.title       = issue.repo_name;
+
+                const diffTag = document.createElement('span');
+                diffTag.className   = `difficulty-tag ${diff.cls}`;
+                diffTag.textContent = diff.text;
+
+                meta.appendChild(repoLabel);
+                meta.appendChild(diffTag);
+
+                const title = document.createElement('h3');
+                title.className   = 'issue-title';
+                title.textContent = issue.title;
+
+                const dateEl = document.createElement('span');
+                dateEl.className   = 'saved-date';
+                dateEl.textContent = `Saved ${dateStr}`;
+
+                body.appendChild(meta);
+                body.appendChild(title);
+                body.appendChild(dateEl);
+
+                // actions
+                const actions = document.createElement('div');
+                actions.className = 'card-actions';
+
+                const viewBtn = document.createElement('a');
+                viewBtn.href        = issue.url;
+                viewBtn.target      = '_blank';
+                viewBtn.rel         = 'noopener noreferrer';
+                viewBtn.className   = 'btn-view';
+                viewBtn.textContent = 'View Issue';
+
+                const removeBtn = document.createElement('button');
+                removeBtn.className   = 'btn-remove';
+                removeBtn.textContent = '✕ Remove';
+                removeBtn.addEventListener('click', () => removeIssue(issue.github_issue_id, card));
+
+                actions.appendChild(viewBtn);
+                actions.appendChild(removeBtn);
+
+                card.appendChild(body);
+                card.appendChild(actions);
+                list.appendChild(card);
+            });
+        }
+
+        // ── Remove a single issue ────────────────────────────
+        async function removeIssue(githubIssueId, cardEl) {
+            try {
+                const { error } = await supabase
+                    .from('Saved_Issues')
+                    .delete()
+                    .eq('user_id', currentUserId)
+                    .eq('github_issue_id', githubIssueId);
+                if (error) throw error;
+
+                cardEl.style.transition = 'opacity 0.25s, transform 0.25s';
+                cardEl.style.opacity    = '0';
+                cardEl.style.transform  = 'translateX(-10px)';
+                setTimeout(() => {
+                    cardEl.remove();
+                    // Update count
+                    const remaining = document.querySelectorAll('.issue-card').length;
+                    document.getElementById('count-badge').textContent = `${remaining} saved`;
+                    document.getElementById('clearAllBtn').style.display = remaining > 0 ? 'inline-block' : 'none';
+                    if (remaining === 0) {
+                        document.getElementById('issue-list').innerHTML = `
+                            <div class="state-box">
+                                <div class="icon">🔖</div>
+                                <p>No saved issues yet.</p>
+                                <p class="sub">Go to <a href="find-issues.html">My Matches</a> and hit ☆ Save on any issue.</p>
+                            </div>`;
+                    }
+                }, 280);
+                toast('Issue removed.', 'info', 2000);
+            } catch (err) {
+                console.error('[removeIssue]', err.message);
+                toast('Could not remove issue — try again.', 'error');
+            }
+        }
+
+        // ── Clear all ─────────────────────────────────────────
+        document.getElementById('clearAllBtn').addEventListener('click', async () => {
+            if (!confirm('Remove all saved issues? This cannot be undone.')) return;
+            try {
+                const { error } = await supabase
+                    .from('Saved_Issues')
+                    .delete()
+                    .eq('user_id', currentUserId);
+                if (error) throw error;
+                renderIssues([]);
+                toast('All saved issues cleared.', 'success');
+            } catch (err) {
+                toast('Could not clear issues — try again.', 'error');
+            }
+        });
+
+        // ── Load saved issues ────────────────────────────────
+        async function loadSavedIssues() {
+            try {
+                const { data, error } = await supabase
+                    .from('Saved_Issues')
+                    .select('*')
+                    .eq('user_id', currentUserId)
+                    .order('saved_at', { ascending: false });
+
+                if (error) throw error;
+                renderIssues(data || []);
+            } catch (err) {
+                console.error('[loadSavedIssues]', err.message);
+                document.getElementById('issue-list').innerHTML = `
+                    <div class="state-box">
+                        <div class="icon" style="color:#ef4444"><i class="fas fa-exclamation-circle"></i></div>
+                        <p>Could not load saved issues.</p>
+                        <p class="sub">${err.message}</p>
+                    </div>`;
+            }
+        }
+
+        // ── Init ─────────────────────────────────────────────
+        window.addEventListener('load', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+            currentUserId = session.user.id;
+            await loadSavedIssues();
+        });
+    </script>
+</body>
+</html>

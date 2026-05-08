@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Sign in to your GitMatch account.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | GitMatch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --royal-blue: #1a3a8a;
+            --royal-blue-hover: #1e40af;
+            --text-dim: rgba(255, 255, 255, 0.5);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background: #020305;
+            background-image: radial-gradient(circle at 50% -20%, rgba(26, 58, 138, 0.18) 0%, transparent 55%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            background: rgba(8, 8, 10, 0.85);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            margin-bottom: 28px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: white; }
+
+        .header { text-align: center; margin-bottom: 28px; }
+        .header h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .header p { color: var(--text-dim); font-size: 14px; }
+
+        /* GitHub OAuth button */
+        .btn-github {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.06);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 15px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .btn-github:hover:not(:disabled) { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.28); }
+        .btn-github:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+        .divider span { font-size: 12px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: white;
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.25s, background 0.25s;
+        }
+        .form-group input:focus {
+            border-color: var(--royal-blue);
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: var(--royal-blue);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 16px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.25s, transform 0.2s;
+            margin-top: 8px;
+        }
+        .btn-submit:hover:not(:disabled) { background: var(--royal-blue-hover); transform: translateY(-2px); }
+        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 16px;
+            min-height: 20px;
+            font-weight: 600;
+        }
+
+        .footer { text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-dim); }
+        .footer a { color: white; text-decoration: none; font-weight: 700; transition: color 0.2s; }
+        .footer a:hover { color: #60a5fa; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-card">
+        <a href="index.html" class="back-link">← Back to home</a>
+
+        <div class="header">
+            <h1>Welcome Back</h1>
+            <p>Sign in to access your GitMatch dashboard.</p>
+        </div>
+
+        <!-- GitHub OAuth -->
+        <button class="btn-github" id="githubBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            Continue with GitHub
+        </button>
+
+        <div class="divider"><span>or sign in with email</span></div>
+
+        <div id="error-container" class="error-msg" role="alert"></div>
+
+        <form id="login-form" novalidate>
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="name@email.com" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-submit">Sign In</button>
+        </form>
+
+        <div class="footer">
+            Don't have an account? <a href="signup.html">Sign Up</a>
+        </div>
+    </div>
+
+    <script src="supabase-client.js"></script>
+    <script>
+        const errorContainer = document.getElementById('error-container');
+        const submitBtn      = document.getElementById('submitBtn');
+        const loginForm      = document.getElementById('login-form');
+
+        // Build auth-callback URL dynamically
+        function getRedirectTo() {
+            const base = window.location.href.replace(/[^/]*$/, '');
+            return base + 'auth-callback.html';
+        }
+
+        // Redirect already-logged-in users
+        (async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) window.location.replace('find-issues.html');
+        })();
+
+        // ── GitHub OAuth ─────────────────────────────────────
+        document.getElementById('githubBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('githubBtn');
+            btn.disabled = true;
+            btn.textContent = 'Redirecting to GitHub…';
+            try {
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'github',
+                    options: { redirectTo: getRedirectTo() }
+                });
+                if (error) throw error;
+            } catch (err) {
+                errorContainer.textContent = err.message || 'GitHub sign-in failed. Check Supabase OAuth settings.';
+                btn.disabled = false;
+                btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg> Continue with GitHub`;
+            }
+        });
+
+        // ── Email login ──────────────────────────────────────
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email    = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                errorContainer.textContent = 'Please fill in all fields.';
+                return;
+            }
+
+            submitBtn.disabled    = true;
+            submitBtn.textContent = 'Signing in…';
+            errorContainer.textContent = '';
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+
+                // Always go to find-issues; it will redirect to onboarding if no prefs
+                window.location.replace('find-issues.html');
+
+            } catch (err) {
+                errorContainer.textContent = (err.message === 'Invalid login credentials')
+                    ? 'Incorrect email or password.'
+                    : (err.message || 'Sign in failed. Please try again.');
+                submitBtn.disabled    = false;
+                submitBtn.textContent = 'Sign In';
+            }
+        });
+    </script>
+</body>
+</html>

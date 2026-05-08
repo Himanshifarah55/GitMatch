@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Page not found — GitMatch">
+    <title>404 — Page Not Found | GitMatch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background: #020305;
+            background-image: radial-gradient(circle at 50% -10%, rgba(26, 58, 138, 0.15) 0%, transparent 55%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .brand {
+            position: fixed;
+            top: 28px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: white;
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        .code {
+            font-size: clamp(6rem, 20vw, 10rem);
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: rgba(255,255,255,0.12);
+            margin-bottom: 24px;
+            user-select: none;
+        }
+
+        h1 {
+            font-size: clamp(1.4rem, 4vw, 2rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+        }
+
+        p {
+            font-size: 15px;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.6;
+            max-width: 380px;
+            margin-bottom: 40px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-home {
+            background: white;
+            color: #05070a;
+            padding: 13px 28px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .btn-home:hover { transform: scale(1.05); }
+
+        .btn-explore {
+            background: rgba(255,255,255,0.06);
+            color: white;
+            padding: 13px 28px;
+            border-radius: 100px;
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+            border: 1px solid rgba(255,255,255,0.12);
+            transition: background 0.2s;
+        }
+        .btn-explore:hover { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="brand">GitMatch</a>
+
+    <div class="code" aria-hidden="true">404</div>
+    <h1>Page not found</h1>
+    <p>The page you're looking for doesn't exist or may have been moved.</p>
+
+    <div class="btn-row">
+        <a href="index.html" class="btn-home">Go Home</a>
+        <a href="explore.html" class="btn-explore">Browse Trending</a>
+    </div>
+</body>
+</html>

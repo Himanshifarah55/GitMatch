@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Tell GitMatch which languages you know and your experience level to get personalised issue matches.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Your Stack | GitMatch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="config.js"></script>
+    <script src="toast.js"></script>
+
+    <style>
+        :root {
+            --royal-blue: #1a3a8a;
+            --royal-blue-hover: #1e40af;
+            --text-main: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body {
+            background-color: #0d0f14;
+            background-image: radial-gradient(circle at 50% -20%, rgba(26, 58, 138, 0.18) 0%, transparent 55%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            padding: 40px 20px;
+        }
+        .onboarding-card {
+            background: rgba(8, 8, 10, 0.88);
+            backdrop-filter: blur(25px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            width: 100%;
+            max-width: 720px;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.8);
+        }
+        .header { text-align: center; margin-bottom: 32px; }
+        .header h1 { font-size: 30px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .header p { color: var(--text-dim); font-size: 15px; }
+        .section-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .warning-text { color: #ef4444; opacity: 0; transition: opacity 0.3s; }
+        .selected-tags-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: 52px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            align-items: flex-start;
+            align-content: flex-start;
+        }
+        .placeholder-text { color: var(--text-dim); font-size: 13px; line-height: 26px; }
+        .skill-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--royal-blue);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .skill-tag button {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .skill-tag button:hover { color: white; }
+        .search-box {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            margin-bottom: 14px;
+            outline: none;
+            transition: border-color 0.25s;
+        }
+        .search-box:focus { border-color: var(--royal-blue); }
+        .search-box::placeholder { color: var(--text-dim); }
+        .language-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 8px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 18px;
+            margin-bottom: 28px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .lang-item {
+            padding: 10px 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            color: var(--text-dim);
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            user-select: none;
+        }
+        .lang-item:hover { background: rgba(255,255,255,0.06); color: white; }
+        .lang-item.active {
+            background: rgba(26, 58, 138, 0.35);
+            border-color: var(--royal-blue);
+            color: white;
+        }
+        .level-wrapper {
+            display: flex;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 6px;
+            margin-bottom: 32px;
+        }
+        .level-btn {
+            flex: 1;
+            padding: 13px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-align: center;
+            transition: background 0.2s, color 0.2s;
+            border: none;
+            background: none;
+            font-family: inherit;
+        }
+        .level-btn:hover:not(.active) { background: rgba(255,255,255,0.04); color: white; }
+        .level-btn.active { background: var(--royal-blue); color: white; }
+        .btn-finish {
+            width: 100%;
+            padding: 18px;
+            background: var(--royal-blue);
+            color: white;
+            border: none;
+            border-radius: 18px;
+            font-weight: 800;
+            font-size: 17px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.25s, transform 0.2s;
+        }
+        .btn-finish:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-finish:hover:not(:disabled) { background: var(--royal-blue-hover); transform: translateY(-2px); }
+        .error-banner {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #fca5a5;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-card">
+        <div class="header">
+            <h1>Assemble Your Stack</h1>
+            <p>Pick the languages you want to contribute to (up to 5).</p>
+        </div>
+
+        <div id="error-banner" class="error-banner" role="alert"></div>
+
+        <div class="section-row">
+            <span>Your Stack</span>
+            <span id="warningText" class="warning-text">Max 5 reached</span>
+        </div>
+
+        <div id="selectedArea" class="selected-tags-area">
+            <span class="placeholder-text">No languages selected yet...</span>
+        </div>
+
+        <div class="section-row"><span>Browse Languages</span></div>
+        <input type="text" id="langSearch" class="search-box" placeholder="Search (e.g. Python, TypeScript, Go)..." autocomplete="off">
+
+        <div id="languageGrid" class="language-grid"></div>
+
+        <div class="section-row" style="margin-bottom:14px;"><span>Experience Level</span></div>
+        <div class="level-wrapper" role="group" aria-label="Experience level">
+            <button class="level-btn active" data-level="beginner">Beginner</button>
+            <button class="level-btn" data-level="intermediate">Intermediate</button>
+            <button class="level-btn" data-level="expert">Expert</button>
+        </div>
+
+        <button id="finishBtn" class="btn-finish" disabled>Launch Dashboard</button>
+    </div>
+
+    <script>
+        const ALL_LANGUAGES = [
+            'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
+            'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Dart', 'Scala',
+            'Elixir', 'Haskell', 'Lua', 'Perl', 'R', 'Shell', 'PowerShell',
+            'HTML', 'CSS', 'Vue', 'Svelte', 'Astro', 'MATLAB', 'Julia',
+            'Clojure', 'Erlang', 'F#', 'OCaml', 'Nim', 'Zig', 'Assembly',
+            'Solidity', 'Move', 'Nix', 'HCL', 'Dockerfile', 'Makefile'
+        ].sort();
+
+        let selectedStack = [];
+        let selectedLevel = 'beginner';
+        const MAX = 5;
+
+        function renderGrid() {
+            const search = document.getElementById('langSearch').value.toLowerCase();
+            const filtered = ALL_LANGUAGES.filter((l) => l.toLowerCase().includes(search));
+            const grid = document.getElementById('languageGrid');
+            grid.innerHTML = '';
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:8px;">No languages match your search.</p>';
+                return;
+            }
+
+            filtered.forEach((lang) => {
+                const div = document.createElement('div');
+                div.className = `lang-item${selectedStack.includes(lang) ? ' active' : ''}`;
+                div.textContent = lang;
+                div.setAttribute('role', 'checkbox');
+                div.setAttribute('aria-checked', selectedStack.includes(lang));
+                div.setAttribute('tabindex', '0');
+                div.addEventListener('click', () => toggleLanguage(lang));
+                div.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') toggleLanguage(lang);
+                });
+                grid.appendChild(div);
+            });
+        }
+
+        function toggleLanguage(lang) {
+            const warning = document.getElementById('warningText');
+
+            if (selectedStack.includes(lang)) {
+                selectedStack = selectedStack.filter((l) => l !== lang);
+                warning.style.opacity = '0';
+            } else if (selectedStack.length < MAX) {
+                selectedStack.push(lang);
+                warning.style.opacity = '0';
+            } else {
+                warning.style.opacity = '1';
+                setTimeout(() => { warning.style.opacity = '0'; }, 2200);
+                return;
+            }
+
+            updateTagArea();
+            renderGrid();
+        }
+
+        function updateTagArea() {
+            const area = document.getElementById('selectedArea');
+            const finishBtn = document.getElementById('finishBtn');
+
+            if (selectedStack.length === 0) {
+                area.innerHTML = '<span class="placeholder-text">No languages selected yet...</span>';
+            } else {
+                area.innerHTML = '';
+                selectedStack.forEach((lang) => {
+                    const tag = document.createElement('div');
+                    tag.className = 'skill-tag';
+
+                    const label = document.createElement('span');
+                    label.textContent = lang;
+
+                    const btn = document.createElement('button');
+                    btn.textContent = 'x';
+                    btn.setAttribute('aria-label', `Remove ${lang}`);
+                    btn.addEventListener('click', () => toggleLanguage(lang));
+
+                    tag.appendChild(label);
+                    tag.appendChild(btn);
+                    area.appendChild(tag);
+                });
+            }
+
+            finishBtn.disabled = selectedStack.length === 0;
+        }
+
+        document.querySelectorAll('.level-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.level-btn').forEach((b) => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedLevel = this.dataset.level;
+            });
+        });
+
+        document.getElementById('langSearch').addEventListener('input', renderGrid);
+
+        document.getElementById('finishBtn').addEventListener('click', async () => {
+            const finishBtn = document.getElementById('finishBtn');
+            const errorBanner = document.getElementById('error-banner');
+            errorBanner.style.display = 'none';
+
+            finishBtn.textContent = 'Saving...';
+            finishBtn.disabled = true;
+
+            try {
+                const { data: { session }, error: sessionErr } = await supabase.auth.getSession();
+                if (sessionErr || !session) {
+                    window.location.replace('login.html');
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE}/api/save-profile`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({
+                        skills: selectedStack,
+                        experience_level: selectedLevel
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(errData.error || `Server error ${response.status}`);
+                }
+
+                const levelToLabel = {
+                    beginner: 'good first issue',
+                    intermediate: 'help wanted',
+                    expert: 'enhancement'
+                };
+
+                localStorage.setItem('userPrefs', JSON.stringify({
+                    languages: selectedStack,
+                    level: levelToLabel[selectedLevel] || 'good first issue'
+                }));
+
+                toast('Stack saved! Redirecting...', 'success');
+                setTimeout(() => window.location.replace('find-issues.html'), 900);
+            } catch (err) {
+                console.error('Onboarding save error:', err);
+                errorBanner.textContent = `Save failed: ${err.message}. Make sure the backend server is running.`;
+                errorBanner.style.display = 'block';
+                toast(`Save failed: ${err.message}`, 'error', 5000);
+                finishBtn.textContent = 'Launch Dashboard';
+                finishBtn.disabled = false;
+            }
+        });
+
+        async function loadPrefsFromBackend(session) {
+            try {
+                const response = await fetch(`${API_BASE}/api/get-profile`, {
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`
+                    }
+                });
+
+                if (!response.ok) return null;
+
+                const profile = await response.json();
+                if (!Array.isArray(profile.languages) || profile.languages.length === 0) {
+                    return null;
+                }
+
+                return {
+                    languages: profile.languages.slice(0, MAX),
+                    level: profile.level || 'good first issue'
+                };
+            } catch (_) {
+                return null;
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.replace('login.html');
+                return;
+            }
+
+            let prefs = null;
+            const cached = localStorage.getItem('userPrefs');
+
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed.languages) && parsed.languages.length > 0) {
+                        prefs = parsed;
+                    }
+                } catch (_) {}
+            }
+
+            if (!prefs) {
+                prefs = await loadPrefsFromBackend(session);
+                if (prefs) {
+                    localStorage.setItem('userPrefs', JSON.stringify(prefs));
+                }
+            }
+
+            if (prefs) {
+                selectedStack = prefs.languages.slice(0, MAX);
+
+                const labelToLevel = {
+                    'good first issue': 'beginner',
+                    'help wanted': 'intermediate',
+                    enhancement: 'expert'
+                };
+
+                const level = labelToLevel[prefs.level] || 'beginner';
+                selectedLevel = level;
+
+                document.querySelectorAll('.level-btn').forEach((b) => {
+                    b.classList.toggle('active', b.dataset.level === level);
+                });
+            }
+
+            updateTagArea();
+            renderGrid();
+        });
+    </script>
+</body>
+</html>

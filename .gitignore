@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Environment - NEVER commit secrets
+.env
+
+# Vercel local project metadata
+.vercel/

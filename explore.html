@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<!--
+  explore.html
+  AngularJS (1.8) powers this page entirely:
+    • ExploreCtrl manages repos[], skills[], activeSkill, loading, error state
+    • ng-repeat renders the skill pills and all repo cards
+    • ng-if shows/hides loading spinner and error state
+    • ng-class applies .active to the selected skill pill
+    • ng-click calls setSkill() to filter repos
+    • ng-src safely binds avatar images
+    • ng-bind / {{ }} binds all repo text (name, description, stars, language)
+-->
+<html lang="en" ng-app="exploreApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Browse trending open-source repositories across every major language ecosystem.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending Ecosystems | GitMatch</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- LOAD ORDER: Supabase CDN → config → supabase-client → toast → AngularJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="supabase-client.js"></script>
+    <script src="toast.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+
+    <style>
+        :root {
+            --royal-blue: #1a3a8a;
+            --royal-blue-hover: #1e40af;
+            --text-main: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: #000212;
+            background-image: radial-gradient(circle at 50% 0%, rgba(26, 58, 138, 0.15) 0%, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Navbar ─────────────────────────────────────────── */
+        .navbar-wrapper {
+            width: 100%; padding-top: 24px; display: flex;
+            justify-content: center; position: fixed; top: 0; left: 0; z-index: 1000;
+        }
+        .navbar-pill {
+            position: relative; width: 92%; max-width: 960px; height: 60px;
+            background: rgba(122,119,168,0.082); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 100px;
+            padding: 0 24px; display: flex; align-items: center;
+            justify-content: space-between; z-index: 10;
+        }
+        .brand { color: white; font-weight: 800; font-size: 1.2rem; text-decoration: none; letter-spacing: -0.5px; }
+        .desktop-links { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 32px; }
+        .nav-link { color: #94a3b8; text-decoration: none; font-weight: 500; transition: color 0.3s ease; }
+        .nav-link:hover, .nav-link.active { color: white; }
+        .nav-actions { display: flex; align-items: center; gap: 14px; }
+        .btn-nav { background: white; color: #05070a; padding: 8px 20px; border-radius: 100px; text-decoration: none; font-weight: 700; font-size: 0.875rem; transition: transform 0.2s; }
+        .btn-nav:hover { transform: scale(1.05); }
+        .btn-nav-dash { background: rgba(255,255,255,0.08); color: white; padding: 8px 20px; border-radius: 100px; text-decoration: none; font-weight: 700; font-size: 0.875rem; border: 1px solid rgba(255,255,255,0.15); transition: background 0.2s; }
+        .btn-nav-dash:hover { background: rgba(255,255,255,0.14); }
+        .hamburger { display: none; flex-direction: column; gap: 4px; background: none; border: none; cursor: pointer; padding: 4px; }
+        .hamburger span { width: 20px; height: 2px; background-color: white; border-radius: 2px; transition: 0.3s; }
+        .hamburger.active span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+        .mobile-menu-card {
+            position: absolute; top: 100%; left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            width: 92%; max-width: 960px;
+            background: rgba(13,17,23,0.97); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 28px;
+            display: flex; flex-direction: column; gap: 12px;
+            opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 5; margin-top: 10px;
+        }
+        .mobile-menu-card.open { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+        .mobile-link { color: #94a3b8; text-decoration: none; font-size: 1.05rem; font-weight: 500; text-align: center; padding: 10px; border-radius: 8px; transition: 0.2s; }
+        .mobile-link:hover { background: rgba(255,255,255,0.05); color: white; }
+
+        @media (max-width: 900px) {
+            .desktop-links { display: none; }
+            .hamburger { display: flex; }
+            .btn-nav, .btn-nav-dash { display: none; }
+        }
+
+        /* ── Explore layout ──────────────────────────────────── */
+        .explore-container { max-width: 1200px; margin: 140px auto 60px; padding: 0 20px; }
+        .explore-header { margin-bottom: 40px; text-align: center; }
+        .explore-header h1 { font-size: clamp(1.8rem,4vw,2.6rem); font-weight: 800; letter-spacing: -0.8px; margin-bottom: 12px; }
+        .explore-header p { font-size: 15px; color: var(--text-dim); max-width: 520px; margin: 0 auto; }
+
+        /* Skill pills */
+        .skills-slider { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 12px; margin-bottom: 36px; scrollbar-width: none; justify-content: center; flex-wrap: wrap; }
+        .skills-slider::-webkit-scrollbar { display: none; }
+        .skill-pill { padding: 9px 22px; background: rgba(255,255,255,0.05); color: var(--text-dim); border-radius: 30px; font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; border: 1px solid var(--glass-border); transition: all 0.2s ease; user-select: none; }
+        .skill-pill:hover { background: rgba(255,255,255,0.1); color: white; }
+        .skill-pill.active { background: var(--royal-blue); color: white; border-color: var(--royal-blue); box-shadow: 0 4px 15px rgba(26,58,138,0.4); }
+
+        /* Repo card grid */
+        .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 22px; min-height: 300px; align-content: start; }
+        .repo-card { background: rgba(8,8,10,0.8); border: 1px solid var(--glass-border); border-radius: 24px; padding: 28px; transition: 0.35s cubic-bezier(0.2,0.8,0.2,1); display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+        .repo-card::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 40%); pointer-events: none; }
+        .repo-card:hover { border-color: var(--royal-blue); box-shadow: 0 20px 40px rgba(0,0,0,0.5); transform: translateY(-6px); }
+        .repo-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+        .repo-avatar { width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--glass-border); object-fit: cover; }
+        .repo-title-text h3 { font-size: 18px; font-weight: 700; color: white; margin-bottom: 3px; }
+        .repo-title-text span { font-size: 12px; color: var(--text-dim); }
+        .repo-desc { font-size: 13px; color: #a1a1aa; line-height: 1.6; margin-bottom: 20px; flex-grow: 1; }
+        .repo-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--glass-border); padding-top: 18px; }
+        .repo-stats { display: flex; gap: 14px; font-size: 12px; color: var(--text-dim); font-weight: 600; }
+        .repo-stats .star { color: #fbbf24; margin-right: 4px; }
+        .repo-stats .dot  { color: #1a3a8a; margin-right: 4px; font-size: 9px; }
+        .btn-repo { background: var(--royal-blue); color: white; text-decoration: none; padding: 9px 18px; border-radius: 10px; font-weight: 700; font-size: 12px; transition: background 0.2s; }
+        .btn-repo:hover { background: var(--royal-blue-hover); }
+
+        /* State boxes */
+        .state-box { grid-column: 1/-1; text-align: center; padding: 80px 20px; color: var(--text-dim); }
+        .state-box p   { font-weight: 600; font-size: 14px; margin-top: 14px; }
+        .state-box .sub { font-size: 12px; margin-top: 8px; opacity: 0.6; }
+    </style>
+</head>
+
+<body ng-controller="ExploreCtrl">
+
+    <!-- ── Navbar ────────────────────────────────────────────── -->
+    <nav class="navbar-wrapper">
+        <div class="navbar-pill">
+            <a href="index.html" class="brand">GitMatch</a>
+            <div class="desktop-links">
+                <a href="explore.html" class="nav-link active">Trending</a>
+                <a href="index.html#how-it-works" class="nav-link">How it Works</a>
+            </div>
+            <div class="nav-actions">
+                <!-- ng-if shows Dashboard link when logged in, Login when not -->
+                <a ng-if="isLoggedIn"  href="find-issues.html" class="btn-nav-dash">Dashboard</a>
+                <a ng-if="!isLoggedIn" href="login.html"       class="btn-nav">Login</a>
+                <button class="hamburger" id="hamburger" aria-label="Open navigation menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+        </div>
+        <div class="mobile-menu-card" id="mobile-menu">
+            <a href="explore.html" class="mobile-link active">Trending</a>
+            <a href="index.html#how-it-works" class="mobile-link">How it Works</a>
+        </div>
+    </nav>
+
+    <!-- ── Main content ─────────────────────────────────────── -->
+    <main class="explore-container">
+        <header class="explore-header">
+            <h1>Trending Ecosystems</h1>
+            <p>Discover top open-source repositories across the most popular tech stacks.</p>
+        </header>
+
+        <!--
+          Skill pills — ng-repeat over skills array.
+          ng-class adds .active when pill matches activeSkill.
+          ng-click calls setSkill() to load repos for that language.
+        -->
+        <div class="skills-slider" role="group" aria-label="Filter by ecosystem">
+            <div
+                class="skill-pill"
+                ng-repeat="skill in skills track by $index"
+                ng-class="{ active: activeSkill === skill }"
+                ng-click="setSkill(skill)"
+                role="button"
+                tabindex="0">
+                {{ skill }}
+            </div>
+        </div>
+
+        <!--
+          Repo grid — AngularJS renders everything here.
+          ng-if for loading spinner, error state, empty state, and cards.
+        -->
+        <section class="repo-grid">
+
+            <!-- Loading spinner -->
+            <div class="state-box" ng-if="loading">
+                <i class="fas fa-circle-notch fa-spin fa-2x"></i>
+                <p>Loading {{ activeSkill === 'All' ? 'ALL' : activeSkill.toUpperCase() }} repos…</p>
+            </div>
+
+            <!-- Error state -->
+            <div class="state-box" ng-if="!loading && error">
+                <i class="fas fa-plug" style="color:#ef4444;font-size:2rem;"></i>
+                <p style="color:#ef4444;">Could not connect to backend.</p>
+                <p class="sub">Run: node index.js</p>
+            </div>
+
+            <!-- Empty state -->
+            <div class="state-box" ng-if="!loading && !error && repos.length === 0">
+                <p>No repositories found for this filter.</p>
+            </div>
+
+            <!--
+              Repo cards — ng-repeat over repos[].
+              ng-src safely binds the avatar image URL.
+              {{ }} binds name, full_name, description, stars, language.
+            -->
+            <div class="repo-card" ng-repeat="repo in repos track by $index" ng-if="!loading && !error">
+                <div>
+                    <div class="repo-header">
+                        <img
+                            ng-src="{{ repo.avatar || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png' }}"
+                            class="repo-avatar"
+                            alt=""
+                            onerror="this.src='https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'">
+                        <div class="repo-title-text">
+                            <h3 ng-bind="repo.name"></h3>
+                            <span ng-bind="repo.full_name"></span>
+                        </div>
+                    </div>
+                    <p class="repo-desc" ng-bind="repo.description || 'No description provided.'"></p>
+                </div>
+                <div class="repo-footer">
+                    <div class="repo-stats">
+                        <span>
+                            <i class="fas fa-star star"></i>{{ formatStars(repo.stars) }}
+                        </span>
+                        <span>
+                            <i class="fas fa-circle dot"></i>{{ repo.language || 'Mixed' }}
+                        </span>
+                    </div>
+                    <a ng-href="{{ repo.url }}" target="_blank" rel="noopener noreferrer" class="btn-repo">
+                        View Repo
+                    </a>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+    // ════════════════════════════════════════════════════════
+    //  AngularJS App — ExploreCtrl
+    //  Owns: skills[], repos[], activeSkill, loading, error,
+    //        isLoggedIn, formatStars(), setSkill(), loadRepos()
+    // ════════════════════════════════════════════════════════
+    angular.module('exploreApp', [])
+
+    .controller('ExploreCtrl', ['$scope', '$http', function($scope, $http) {
+
+        // ── Model ──────────────────────────────────────────
+        $scope.skills      = ['All','JavaScript','TypeScript','Python','Go','Rust','Java','C++','Ruby','Swift'];
+        $scope.activeSkill = 'All';
+        $scope.repos       = [];
+        $scope.loading     = false;
+        $scope.error       = false;
+        $scope.isLoggedIn  = false;
+
+        // ── Auth check — sets isLoggedIn for nav button ────
+        // Uses vanilla Supabase client (already loaded before Angular)
+        supabase.auth.getSession().then(function(result) {
+            $scope.$apply(function() {
+                $scope.isLoggedIn = !!(result.data && result.data.session);
+            });
+        });
+
+        // ── formatStars — used in template ────────────────
+        $scope.formatStars = function(n) {
+            if (!n) return '0';
+            return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+        };
+
+        // ── setSkill — called by ng-click on skill pills ───
+        $scope.setSkill = function(skill) {
+            if ($scope.activeSkill === skill || $scope.loading) return;
+            $scope.activeSkill = skill;
+            $scope.loadRepos(skill);
+        };
+
+        // ── loadRepos — uses $http (AngularJS's HTTP service) ─
+        $scope.loadRepos = function(skill) {
+            $scope.loading = true;
+            $scope.error   = false;
+            $scope.repos   = [];
+
+            const param = (skill === 'All') ? 'All Ecosystems' : skill;
+
+            $http.get(API_BASE + '/api/trending-repos', {
+                params: { skill: param }
+            })
+            .then(function(response) {
+                $scope.repos   = response.data || [];
+                $scope.loading = false;
+            })
+            .catch(function(err) {
+                console.error('Trending repos error:', err);
+                $scope.error   = true;
+                $scope.loading = false;
+                if (err.status === 429) {
+                    toast('GitHub rate limit hit — try again in a minute.', 'error', 6000);
+                }
+            });
+        };
+
+        // ── Init — load All repos on page open ────────────
+        $scope.loadRepos('All');
+    }]);
+
+    // ════════════════════════════════════════════════════════
+    //  Vanilla JS — hamburger menu only
+    //  (AngularJS owns everything else on this page)
+    // ════════════════════════════════════════════════════════
+    (function () {
+        const hamburger  = document.getElementById('hamburger');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        hamburger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            hamburger.classList.toggle('active');
+            mobileMenu.classList.toggle('open');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!hamburger.contains(e.target) && !mobileMenu.contains(e.target)) {
+                hamburger.classList.remove('active');
+                mobileMenu.classList.remove('open');
+            }
+        });
+
+        mobileMenu.querySelectorAll('a').forEach(function(a) {
+            a.addEventListener('click', function() {
+                hamburger.classList.remove('active');
+                mobileMenu.classList.remove('open');
+            });
+        });
+    })();
+    </script>
+</body>
+</html>
