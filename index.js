@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
+// Node 18+ (required by package.json "engines") ships a global fetch — no need for node-fetch.
 
 const app = express();
 const PORT = process.env.PORT || 3000;

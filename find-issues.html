@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" ng-app="gitMatchApp">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,7 +13,6 @@
     <script src="supabase-client.js"></script>
     <script src="config.js"></script>
     <script src="toast.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
 
     <style>
         :root {
@@ -448,7 +447,7 @@
         }
     </style>
 </head>
-<body ng-controller="DashboardCtrl">
+<body>
     <nav class="navbar-wrapper" aria-label="Main navigation">
         <div class="navbar-pill">
             <a href="index.html" class="brand">GitMatch</a>
@@ -477,25 +476,22 @@
         <aside class="sidebar" aria-label="Your profile summary">
             <span class="section-label">Your Stack</span>
 
-            <div class="stack-chip" ng-repeat="lang in sidebar.languages track by $index">
-                {{ lang }}
-            </div>
-            <div ng-if="sidebar.languages.length === 0" style="color:var(--text-dim);font-size:13px;margin-bottom:8px;">
-                Loading...
+            <div id="stackChips">
+                <div style="color:var(--text-dim);font-size:13px;margin-bottom:8px;">Loading...</div>
             </div>
 
             <span class="section-label" style="margin-top:22px;">Match Level</span>
-            <div class="level-badge" ng-bind="sidebar.levelLabel" ng-style="sidebar.levelStyle"></div>
+            <div class="level-badge" id="levelBadge">-</div>
 
             <div class="sidebar-divider"></div>
 
             <div class="sidebar-stat">
                 <span>Issues loaded</span>
-                <strong ng-bind="sidebar.issueCount"></strong>
+                <strong id="sidebarIssueCount">-</strong>
             </div>
             <div class="sidebar-stat">
                 <span>Languages</span>
-                <strong ng-bind="sidebar.languages.length || '-'"></strong>
+                <strong id="sidebarLangCount">-</strong>
             </div>
 
             <a href="onboarding.html" class="edit-link">
@@ -504,7 +500,7 @@
             </a>
             <a href="saveissue.html" class="saved-link">
                 <span><i class="fas fa-bookmark" style="margin-right:6px;"></i>Saved Issues</span>
-                <span class="saved-badge" ng-bind="sidebar.savedCount">0</span>
+                <span class="saved-badge" id="sidebarSavedCount">0</span>
             </a>
         </aside>
 
@@ -522,15 +518,7 @@
                 </div>
             </div>
 
-            <div class="filters-row" role="group" aria-label="Filter by language">
-                <button
-                    class="filter-pill"
-                    ng-repeat="lang in filters.langs track by $index"
-                    ng-class="{ active: filters.active === lang }"
-                    ng-click="setFilter(lang)">
-                    {{ lang }}
-                </button>
-            </div>
+            <div class="filters-row" id="filtersRow" role="group" aria-label="Filter by language"></div>
 
             <div id="issuesContainer" class="issue-grid" aria-live="polite" aria-label="Issue feed">
                 <div class="state-box">
@@ -546,69 +534,121 @@
     </div>
 
     <script>
-        const app = angular.module('gitMatchApp', []);
+        // ════════════════════════════════════════════════════════
+        //  Sidebar + filter pill state (was AngularJS DashboardCtrl)
+        // ════════════════════════════════════════════════════════
+        const sidebar = {
+            languages: [],
+            levelLabel: '-',
+            levelStyle: {},
+            issueCount: '-',
+            savedCount: 0
+        };
 
-        app.controller('DashboardCtrl', ['$scope', function ($scope) {
-            $scope.sidebar = {
-                languages: [],
-                levelLabel: '-',
-                levelStyle: {},
-                issueCount: '-',
-                savedCount: 0
+        const filters = {
+            langs: ['All'],
+            active: 'All'
+        };
+
+        function renderStackChips() {
+            const container = document.getElementById('stackChips');
+            container.innerHTML = '';
+
+            if (sidebar.languages.length === 0) {
+                const loading = document.createElement('div');
+                loading.style.cssText = 'color:var(--text-dim);font-size:13px;margin-bottom:8px;';
+                loading.textContent = 'Loading...';
+                container.appendChild(loading);
+                return;
+            }
+
+            sidebar.languages.forEach((lang) => {
+                const chip = document.createElement('div');
+                chip.className = 'stack-chip';
+                chip.textContent = lang;
+                container.appendChild(chip);
+            });
+        }
+
+        function renderLevelBadge() {
+            const badge = document.getElementById('levelBadge');
+            badge.textContent = sidebar.levelLabel;
+            badge.style.background = sidebar.levelStyle.background || '';
+        }
+
+        function renderSidebarStats() {
+            document.getElementById('sidebarIssueCount').textContent = sidebar.issueCount;
+            document.getElementById('sidebarLangCount').textContent = sidebar.languages.length || '-';
+            document.getElementById('sidebarSavedCount').textContent = sidebar.savedCount;
+        }
+
+        function renderFilterPills() {
+            const row = document.getElementById('filtersRow');
+            row.innerHTML = '';
+
+            filters.langs.forEach((lang) => {
+                const pill = document.createElement('button');
+                pill.className = `filter-pill${filters.active === lang ? ' active' : ''}`;
+                pill.textContent = lang;
+                pill.addEventListener('click', () => setFilter(lang));
+                row.appendChild(pill);
+            });
+        }
+
+        function setFilter(lang) {
+            if (filters.active === lang || window._isLoading) return;
+            filters.active = lang;
+            renderFilterPills();
+            window._activeLangFilter = lang;
+            window._currentPage = 1;
+            window._fetchIssues(true);
+        }
+
+        function setPrefsUI(prefs) {
+            sidebar.languages = prefs.languages || [];
+            filters.langs = ['All', ...(prefs.languages || [])];
+            filters.active = 'All';
+
+            const levelMap = {
+                'good first issue': { label: 'GOOD FIRST ISSUE', style: { background: '#065f46' } },
+                'help wanted': { label: 'HELP WANTED', style: { background: '#92400e' } },
+                enhancement: { label: 'ENHANCEMENT', style: { background: '#581c87' } }
             };
 
-            $scope.filters = {
-                langs: ['All'],
-                active: 'All'
+            const lv = levelMap[prefs.level] || {
+                label: (prefs.level || '-').toUpperCase(),
+                style: {}
             };
 
-            $scope.setFilter = function (lang) {
-                if ($scope.filters.active === lang || window._isLoading) return;
-                $scope.filters.active = lang;
-                window._activeLangFilter = lang;
-                window._currentPage = 1;
-                window._fetchIssues(true);
-            };
+            sidebar.levelLabel = lv.label;
+            sidebar.levelStyle = lv.style;
 
-            window._ngSetPrefs = function (prefs) {
-                $scope.$apply(function () {
-                    $scope.sidebar.languages = prefs.languages || [];
-                    $scope.filters.langs = ['All', ...(prefs.languages || [])];
+            renderStackChips();
+            renderLevelBadge();
+            renderSidebarStats();
+            renderFilterPills();
+        }
 
-                    const levelMap = {
-                        'good first issue': { label: 'GOOD FIRST ISSUE', style: { background: '#065f46' } },
-                        'help wanted': { label: 'HELP WANTED', style: { background: '#92400e' } },
-                        enhancement: { label: 'ENHANCEMENT', style: { background: '#581c87' } }
-                    };
+        function setIssueCountUI(n) {
+            sidebar.issueCount = n;
+            renderSidebarStats();
+        }
 
-                    const lv = levelMap[prefs.level] || {
-                        label: (prefs.level || '-').toUpperCase(),
-                        style: {}
-                    };
+        function setSavedCountUI(n) {
+            sidebar.savedCount = n;
+            renderSidebarStats();
+        }
 
-                    $scope.sidebar.levelLabel = lv.label;
-                    $scope.sidebar.levelStyle = lv.style;
-                });
-            };
+        function setActiveFilterUI(lang) {
+            filters.active = lang;
+            renderFilterPills();
+        }
 
-            window._ngSetIssueCount = function (n) {
-                $scope.$apply(function () {
-                    $scope.sidebar.issueCount = n;
-                });
-            };
-
-            window._ngSetSavedCount = function (n) {
-                $scope.$apply(function () {
-                    $scope.sidebar.savedCount = n;
-                });
-            };
-
-            window._ngSetActiveFilter = function (lang) {
-                $scope.$apply(function () {
-                    $scope.filters.active = lang;
-                });
-            };
-        }]);
+        // Initial render (before prefs load)
+        renderStackChips();
+        renderLevelBadge();
+        renderSidebarStats();
+        renderFilterPills();
 
         let currentUserId = null;
         let userPrefs = null;
@@ -707,14 +747,14 @@
                 if (error) throw error;
 
                 savedIssueIds = new Set((data || []).map((r) => String(r.github_issue_id)));
-                if (window._ngSetSavedCount) window._ngSetSavedCount(savedIssueIds.size);
+                setSavedCountUI(savedIssueIds.size);
             } catch (err) {
                 console.warn('Could not load saved IDs:', err.message);
             }
         }
 
         function updateSavedBadge() {
-            if (window._ngSetSavedCount) window._ngSetSavedCount(savedIssueIds.size);
+            setSavedCountUI(savedIssueIds.size);
         }
 
         function showState(iconHtml, message, sub = '') {
@@ -725,7 +765,7 @@
                     ${sub ? `<p class="sub">${sub}</p>` : ''}
                 </div>`;
             document.getElementById('issue-count').textContent = '';
-            if (window._ngSetIssueCount) window._ngSetIssueCount('-');
+            setIssueCountUI('-');
             document.getElementById('loadMoreWrap').classList.remove('visible');
         }
 
@@ -930,7 +970,7 @@
 
                 const total = container.querySelectorAll('article.issue-card').length;
                 document.getElementById('issue-count').textContent = `${total} issue${total !== 1 ? 's' : ''}`;
-                if (window._ngSetIssueCount) window._ngSetIssueCount(total);
+                setIssueCountUI(total);
 
                 if (issues.length >= PAGE_SIZE) {
                     document.getElementById('loadMoreWrap').classList.add('visible');
@@ -962,7 +1002,7 @@
         function loadFeed() {
             window._activeLangFilter = 'All';
             window._currentPage = 1;
-            if (window._ngSetActiveFilter) window._ngSetActiveFilter('All');
+            setActiveFilterUI('All');
             window._fetchIssues(true);
         }
 
@@ -981,7 +1021,7 @@
 
             userPrefs = prefs;
 
-            if (window._ngSetPrefs) window._ngSetPrefs(prefs);
+            setPrefsUI(prefs);
 
             await loadSavedIds();
             await window._fetchIssues(true);

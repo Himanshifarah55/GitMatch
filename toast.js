@@ -82,7 +82,15 @@
         const container = getContainer();
         const el = document.createElement('div');
         el.className = `toast ${type}`;
-        el.innerHTML = `<span>${ICONS[type] || ''}</span><span>${message}</span>`;
+
+        const iconSpan = document.createElement('span');
+        iconSpan.textContent = ICONS[type] || '';
+
+        const msgSpan = document.createElement('span');
+        msgSpan.textContent = message;
+
+        el.appendChild(iconSpan);
+        el.appendChild(msgSpan);
         container.appendChild(el);
 
         // Trigger animation

@@ -1,16 +1,11 @@
 <!DOCTYPE html>
 <!--
   explore.html
-  AngularJS (1.8) powers this page entirely:
-    • ExploreCtrl manages repos[], skills[], activeSkill, loading, error state
-    • ng-repeat renders the skill pills and all repo cards
-    • ng-if shows/hides loading spinner and error state
-    • ng-class applies .active to the selected skill pill
-    • ng-click calls setSkill() to filter repos
-    • ng-src safely binds avatar images
-    • ng-bind / {{ }} binds all repo text (name, description, stars, language)
+  Vanilla JS powers this page entirely:
+    • loadRepos() fetches trending repos and renders skill pills + repo cards
+    • All GitHub data is rendered via textContent / DOM APIs, never innerHTML
 -->
-<html lang="en" ng-app="exploreApp">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="description" content="Browse trending open-source repositories across every major language ecosystem.">
@@ -20,12 +15,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-    <!-- LOAD ORDER: Supabase CDN → config → supabase-client → toast → AngularJS -->
+    <!-- LOAD ORDER: Supabase CDN → config → supabase-client → toast -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="supabase-client.js"></script>
     <script src="toast.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
 
     <style>
         :root {
@@ -128,7 +122,7 @@
     </style>
 </head>
 
-<body ng-controller="ExploreCtrl">
+<body>
 
     <!-- ── Navbar ────────────────────────────────────────────── -->
     <nav class="navbar-wrapper">
@@ -138,10 +132,8 @@
                 <a href="explore.html" class="nav-link active">Trending</a>
                 <a href="index.html#how-it-works" class="nav-link">How it Works</a>
             </div>
-            <div class="nav-actions">
-                <!-- ng-if shows Dashboard link when logged in, Login when not -->
-                <a ng-if="isLoggedIn"  href="find-issues.html" class="btn-nav-dash">Dashboard</a>
-                <a ng-if="!isLoggedIn" href="login.html"       class="btn-nav">Login</a>
+            <div class="nav-actions" id="nav-actions">
+                <a href="login.html" class="btn-nav" id="nav-auth-link">Login</a>
                 <button class="hamburger" id="hamburger" aria-label="Open navigation menu">
                     <span></span><span></span><span></span>
                 </button>
@@ -160,157 +152,214 @@
             <p>Discover top open-source repositories across the most popular tech stacks.</p>
         </header>
 
-        <!--
-          Skill pills — ng-repeat over skills array.
-          ng-class adds .active when pill matches activeSkill.
-          ng-click calls setSkill() to load repos for that language.
-        -->
-        <div class="skills-slider" role="group" aria-label="Filter by ecosystem">
-            <div
-                class="skill-pill"
-                ng-repeat="skill in skills track by $index"
-                ng-class="{ active: activeSkill === skill }"
-                ng-click="setSkill(skill)"
-                role="button"
-                tabindex="0">
-                {{ skill }}
-            </div>
-        </div>
+        <!-- Skill pills — built by renderSkillPills() -->
+        <div class="skills-slider" id="skillsSlider" role="group" aria-label="Filter by ecosystem"></div>
 
-        <!--
-          Repo grid — AngularJS renders everything here.
-          ng-if for loading spinner, error state, empty state, and cards.
-        -->
-        <section class="repo-grid">
-
-            <!-- Loading spinner -->
-            <div class="state-box" ng-if="loading">
+        <!-- Repo grid — built by loadRepos() / renderRepos() -->
+        <section class="repo-grid" id="repoGrid">
+            <div class="state-box">
                 <i class="fas fa-circle-notch fa-spin fa-2x"></i>
-                <p>Loading {{ activeSkill === 'All' ? 'ALL' : activeSkill.toUpperCase() }} repos…</p>
+                <p>Loading repos…</p>
             </div>
-
-            <!-- Error state -->
-            <div class="state-box" ng-if="!loading && error">
-                <i class="fas fa-plug" style="color:#ef4444;font-size:2rem;"></i>
-                <p style="color:#ef4444;">Could not connect to backend.</p>
-                <p class="sub">Run: node index.js</p>
-            </div>
-
-            <!-- Empty state -->
-            <div class="state-box" ng-if="!loading && !error && repos.length === 0">
-                <p>No repositories found for this filter.</p>
-            </div>
-
-            <!--
-              Repo cards — ng-repeat over repos[].
-              ng-src safely binds the avatar image URL.
-              {{ }} binds name, full_name, description, stars, language.
-            -->
-            <div class="repo-card" ng-repeat="repo in repos track by $index" ng-if="!loading && !error">
-                <div>
-                    <div class="repo-header">
-                        <img
-                            ng-src="{{ repo.avatar || 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png' }}"
-                            class="repo-avatar"
-                            alt=""
-                            onerror="this.src='https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png'">
-                        <div class="repo-title-text">
-                            <h3 ng-bind="repo.name"></h3>
-                            <span ng-bind="repo.full_name"></span>
-                        </div>
-                    </div>
-                    <p class="repo-desc" ng-bind="repo.description || 'No description provided.'"></p>
-                </div>
-                <div class="repo-footer">
-                    <div class="repo-stats">
-                        <span>
-                            <i class="fas fa-star star"></i>{{ formatStars(repo.stars) }}
-                        </span>
-                        <span>
-                            <i class="fas fa-circle dot"></i>{{ repo.language || 'Mixed' }}
-                        </span>
-                    </div>
-                    <a ng-href="{{ repo.url }}" target="_blank" rel="noopener noreferrer" class="btn-repo">
-                        View Repo
-                    </a>
-                </div>
-            </div>
-
         </section>
     </main>
 
     <script>
     // ════════════════════════════════════════════════════════
-    //  AngularJS App — ExploreCtrl
-    //  Owns: skills[], repos[], activeSkill, loading, error,
-    //        isLoggedIn, formatStars(), setSkill(), loadRepos()
+    //  Explore page state
     // ════════════════════════════════════════════════════════
-    angular.module('exploreApp', [])
+    const SKILLS = ['All','JavaScript','TypeScript','Python','Go','Rust','Java','C++','Ruby','Swift'];
+    let activeSkill = 'All';
+    let isLoading   = false;
 
-    .controller('ExploreCtrl', ['$scope', '$http', function($scope, $http) {
+    const FALLBACK_AVATAR = 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png';
 
-        // ── Model ──────────────────────────────────────────
-        $scope.skills      = ['All','JavaScript','TypeScript','Python','Go','Rust','Java','C++','Ruby','Swift'];
-        $scope.activeSkill = 'All';
-        $scope.repos       = [];
-        $scope.loading     = false;
-        $scope.error       = false;
-        $scope.isLoggedIn  = false;
+    function formatStars(n) {
+        if (!n) return '0';
+        return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+    }
 
-        // ── Auth check — sets isLoggedIn for nav button ────
-        // Uses vanilla Supabase client (already loaded before Angular)
-        supabase.auth.getSession().then(function(result) {
-            $scope.$apply(function() {
-                $scope.isLoggedIn = !!(result.data && result.data.session);
+    // ── Skill pills ──────────────────────────────────────────
+    function renderSkillPills() {
+        const slider = document.getElementById('skillsSlider');
+        slider.innerHTML = '';
+        SKILLS.forEach((skill) => {
+            const pill = document.createElement('div');
+            pill.className = `skill-pill${skill === activeSkill ? ' active' : ''}`;
+            pill.textContent = skill;
+            pill.setAttribute('role', 'button');
+            pill.setAttribute('tabindex', '0');
+            pill.addEventListener('click', () => setSkill(skill));
+            pill.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') setSkill(skill);
             });
+            slider.appendChild(pill);
         });
+    }
 
-        // ── formatStars — used in template ────────────────
-        $scope.formatStars = function(n) {
-            if (!n) return '0';
-            return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
-        };
+    function setSkill(skill) {
+        if (activeSkill === skill || isLoading) return;
+        activeSkill = skill;
+        renderSkillPills();
+        loadRepos(skill);
+    }
 
-        // ── setSkill — called by ng-click on skill pills ───
-        $scope.setSkill = function(skill) {
-            if ($scope.activeSkill === skill || $scope.loading) return;
-            $scope.activeSkill = skill;
-            $scope.loadRepos(skill);
-        };
+    // ── State boxes ──────────────────────────────────────────
+    function showGridState(iconHtml, message, sub = '', color = '') {
+        const grid = document.getElementById('repoGrid');
+        grid.innerHTML = '';
 
-        // ── loadRepos — uses $http (AngularJS's HTTP service) ─
-        $scope.loadRepos = function(skill) {
-            $scope.loading = true;
-            $scope.error   = false;
-            $scope.repos   = [];
+        const box = document.createElement('div');
+        box.className = 'state-box';
 
-            const param = (skill === 'All') ? 'All Ecosystems' : skill;
+        const icon = document.createElement('div');
+        icon.innerHTML = iconHtml; // static, trusted markup only (Font Awesome icons)
+        box.appendChild(icon);
 
-            $http.get(API_BASE + '/api/trending-repos', {
-                params: { skill: param }
-            })
-            .then(function(response) {
-                $scope.repos   = response.data || [];
-                $scope.loading = false;
-            })
-            .catch(function(err) {
-                console.error('Trending repos error:', err);
-                $scope.error   = true;
-                $scope.loading = false;
-                if (err.status === 429) {
+        const p = document.createElement('p');
+        if (color) p.style.color = color;
+        p.textContent = message;
+        box.appendChild(p);
+
+        if (sub) {
+            const subEl = document.createElement('p');
+            subEl.className = 'sub';
+            subEl.textContent = sub;
+            box.appendChild(subEl);
+        }
+
+        grid.appendChild(box);
+    }
+
+    // ── Repo card builder ───────────────────────────────────
+    function buildRepoCard(repo) {
+        const card = document.createElement('div');
+        card.className = 'repo-card';
+
+        const top = document.createElement('div');
+        const header = document.createElement('div');
+        header.className = 'repo-header';
+
+        const avatar = document.createElement('img');
+        avatar.className = 'repo-avatar';
+        avatar.alt = '';
+        avatar.src = repo.avatar || FALLBACK_AVATAR;
+        avatar.onerror = function () { this.src = FALLBACK_AVATAR; };
+
+        const titleText = document.createElement('div');
+        titleText.className = 'repo-title-text';
+        const h3 = document.createElement('h3');
+        h3.textContent = repo.name;
+        const span = document.createElement('span');
+        span.textContent = repo.full_name;
+        titleText.appendChild(h3);
+        titleText.appendChild(span);
+
+        header.appendChild(avatar);
+        header.appendChild(titleText);
+
+        const desc = document.createElement('p');
+        desc.className = 'repo-desc';
+        desc.textContent = repo.description || 'No description provided.';
+
+        top.appendChild(header);
+        top.appendChild(desc);
+
+        const footer = document.createElement('div');
+        footer.className = 'repo-footer';
+
+        const stats = document.createElement('div');
+        stats.className = 'repo-stats';
+
+        const starSpan = document.createElement('span');
+        starSpan.innerHTML = '<i class="fas fa-star star"></i>';
+        starSpan.appendChild(document.createTextNode(formatStars(repo.stars)));
+
+        const langSpan = document.createElement('span');
+        langSpan.innerHTML = '<i class="fas fa-circle dot"></i>';
+        langSpan.appendChild(document.createTextNode(repo.language || 'Mixed'));
+
+        stats.appendChild(starSpan);
+        stats.appendChild(langSpan);
+
+        const viewBtn = document.createElement('a');
+        viewBtn.href = repo.url;
+        viewBtn.target = '_blank';
+        viewBtn.rel = 'noopener noreferrer';
+        viewBtn.className = 'btn-repo';
+        viewBtn.textContent = 'View Repo';
+
+        footer.appendChild(stats);
+        footer.appendChild(viewBtn);
+
+        card.appendChild(top);
+        card.appendChild(footer);
+        return card;
+    }
+
+    function renderRepos(repos) {
+        const grid = document.getElementById('repoGrid');
+        grid.innerHTML = '';
+
+        if (repos.length === 0) {
+            showGridState('', 'No repositories found for this filter.');
+            return;
+        }
+
+        const frag = document.createDocumentFragment();
+        repos.forEach((repo) => frag.appendChild(buildRepoCard(repo)));
+        grid.appendChild(frag);
+    }
+
+    // ── Load repos from backend ─────────────────────────────
+    async function loadRepos(skill) {
+        isLoading = true;
+        const label = skill === 'All' ? 'ALL' : skill.toUpperCase();
+        showGridState('<i class="fas fa-circle-notch fa-spin fa-2x"></i>', `Loading ${label} repos…`);
+
+        const param = (skill === 'All') ? 'All Ecosystems' : skill;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/trending-repos?skill=${encodeURIComponent(param)}`);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                if (res.status === 429) {
                     toast('GitHub rate limit hit — try again in a minute.', 'error', 6000);
                 }
-            });
-        };
+                throw new Error(data.error || `Server error ${res.status}`);
+            }
 
-        // ── Init — load All repos on page open ────────────
-        $scope.loadRepos('All');
-    }]);
+            renderRepos(data || []);
+        } catch (err) {
+            console.error('Trending repos error:', err);
+            showGridState(
+                '<i class="fas fa-plug" style="color:#ef4444;font-size:2rem;"></i>',
+                'Could not connect to backend.',
+                'Run: node index.js',
+                '#ef4444'
+            );
+        } finally {
+            isLoading = false;
+        }
+    }
 
-    // ════════════════════════════════════════════════════════
-    //  Vanilla JS — hamburger menu only
-    //  (AngularJS owns everything else on this page)
-    // ════════════════════════════════════════════════════════
+    // ── Nav auth state ───────────────────────────────────────
+    (async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const link = document.getElementById('nav-auth-link');
+                link.href = 'find-issues.html';
+                link.textContent = 'Dashboard';
+                link.className = 'btn-nav-dash';
+            }
+        } catch (err) {
+            console.warn('Auth check failed:', err.message);
+        }
+    })();
+
+    // ── Hamburger menu ───────────────────────────────────────
     (function () {
         const hamburger  = document.getElementById('hamburger');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -335,6 +384,10 @@
             });
         });
     })();
+
+    // ── Init ──────────────────────────────────────────────────
+    renderSkillPills();
+    loadRepos('All');
     </script>
 </body>
 </html>

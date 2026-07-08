@@ -2,12 +2,12 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/health",
-      "destination": "/api/health"
+      "source": "/api/(.*)",
+      "destination": "/api/index.js"
     },
     {
-      "source": "/",
-      "destination": "/index.html"
+      "source": "/health",
+      "destination": "/api/index.js"
     }
   ]
 }

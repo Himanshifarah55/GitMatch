@@ -8,12 +8,10 @@ Match developers to open-source GitHub issues based on their tech stack and expe
 
 | Layer    | Technology |
 |----------|------------|
-| Frontend | HTML, CSS, Vanilla JavaScript, AngularJS 1.8 |
+| Frontend | HTML, CSS, Vanilla JavaScript |
 | Backend  | Node.js, Express.js |
 | Database | Supabase (PostgreSQL + Auth + RLS) |
 | APIs     | GitHub Search API, GitHub OAuth |
-
-AngularJS is used in `find-issues.html` for the sidebar and filter pills, and in `explore.html` for the full repo grid and skill pills.
 
 ---
 
@@ -36,15 +34,17 @@ gitmatch/
 |- toast.js             # Toast notification utility
 |
 |- api/
-|  |- index.js          # Vercel serverless entrypoint
+|  |- index.js          # Vercel serverless entrypoint (re-exports the Express app)
 |
 |- index.js             # Express backend app
 |- vercel.json          # Vercel rewrites
 |- package.json
-|- supabase-schema.sql  # Database schema for Supabase SQL Editor
+|- supabase-schema.sql  # Database schema for Supabase SQL Editor (bring your own — see note below)
 |- .env.example         # Environment variable template
 `- .gitignore
 ```
+
+> **Note:** `supabase-schema.sql` is referenced below but wasn't part of this cleanup pass — if you still have your original schema file, add it back at the project root. Otherwise let me know and I can draft one based on the tables/columns the code already queries (`Users`, `Skills`, `User_Skills`, `Saved_Issues`, and the `save_user_profile` RPC).
 
 ---
 
@@ -111,7 +111,7 @@ GitHub token loaded
 npx serve .
 
 # Option B
-python3 -m http.server 8080
+npx serve . -l 8080
 ```
 
 Then open:
@@ -137,22 +137,17 @@ Preference persistence is stored in both `localStorage` and Supabase. On load, `
 
 ---
 
-## AngularJS Usage
+## Frontend Architecture Notes
+
+The whole frontend is plain HTML, CSS, and vanilla JavaScript — no frameworks.
 
 ### `explore.html`
 
-AngularJS owns the entire page. `ExploreCtrl` manages:
-
-- `repos[]`
-- `skills[]`
-- `activeSkill`
-- `loading`
-- `error`
-- `isLoggedIn`
+`renderSkillPills()` / `loadRepos()` / `renderRepos()` build the skill filter pills and repo cards directly with `document.createElement` and `textContent`, so no GitHub-sourced text is ever passed through `innerHTML`.
 
 ### `find-issues.html`
 
-AngularJS powers:
+Plain functions (`renderStackChips`, `renderLevelBadge`, `renderFilterPills`, etc.) own:
 
 - sidebar stack chips
 - level badge
@@ -160,7 +155,7 @@ AngularJS powers:
 - saved count
 - language filter pills
 
-The issue card feed itself uses vanilla JavaScript for async control and DOM-safe rendering.
+The issue card feed itself also uses vanilla JavaScript for async control and DOM-safe rendering.
 
 ---
 
