@@ -337,13 +337,4 @@ if (require.main === module) {
 
 module.exports = app;
 
-// ============================================================
-//  api/index.js — Vercel serverless entrypoint.
-//
-//  vercel.json rewrites /api/* and /health to this file. It simply
-//  re-exports the Express app defined in the project's index.js —
-//  Vercel's Node runtime knows how to invoke an Express app exported
-//  as a request handler.
-// ============================================================
 
-module.exports = require('../index.js');
