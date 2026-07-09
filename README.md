@@ -23,6 +23,7 @@ gitmatch/
 |- signup.html          # Account creation
 |- login.html           # Sign in
 |- auth-callback.html   # OAuth and email confirmation handler
+|- reset-password.html  # Password reset landing page (forgot-password flow)
 |- onboarding.html      # Skill and experience selection
 |- find-issues.html     # Personalised issue feed
 |- saveissue.html       # Saved issues page
@@ -32,6 +33,10 @@ gitmatch/
 |- supabase-client.js   # Supabase anon client loaded by every page
 |- config.js            # API base URL helper for local dev + Vercel
 |- toast.js             # Toast notification utility
+|- favicon.svg          # Favicon (SVG, modern browsers)
+|- favicon-32.png       # Favicon fallback (PNG)
+|- apple-touch-icon.png # iOS home-screen icon
+|- og-image.png         # Social share image (Open Graph / Twitter Card)
 |
 |- api/
 |  |- index.js          # Vercel serverless entrypoint (re-exports the Express app)
@@ -89,6 +94,7 @@ Run the entire `supabase-schema.sql` file in Supabase -> SQL Editor.
 5. In Supabase -> Authentication -> Providers -> GitHub, paste them in and enable
 6. In Supabase -> Authentication -> URL Configuration -> Redirect URLs, add:
    `http://localhost:8080/auth-callback.html`
+   `http://localhost:8080/reset-password.html`
 
 ### 5. Run the backend locally
 
@@ -111,7 +117,7 @@ GitHub token loaded
 npx serve .
 
 # Option B
-npx serve . -l 8080
+python3 -m http.server 8080
 ```
 
 Then open:
@@ -129,6 +135,7 @@ index.html
   -> signup.html -> auth-callback.html -> onboarding.html -> find-issues.html
   -> login.html -> find-issues.html if prefs exist
   -> login.html -> onboarding.html if prefs do not exist
+  -> login.html -> "Forgot password?" -> reset-password.html -> find-issues.html
   -> explore.html
   -> saveissue.html
 ```
@@ -221,27 +228,40 @@ https://your-project-name.vercel.app
 3. In Supabase -> Authentication -> URL Configuration, set:
    - Site URL: `https://your-project-name.vercel.app`
    - Redirect URL: `https://your-project-name.vercel.app/auth-callback.html`
+   - Redirect URL: `https://your-project-name.vercel.app/reset-password.html`
 4. In your GitHub OAuth App, keep the callback URL as the Supabase callback URL and update the homepage URL to your Vercel domain.
 
 ---
 
 ## Security
 
-| Topic   | Detail |
-|---------|--------|
-| XSS     | All GitHub data is rendered via `textContent` or DOM APIs, never `innerHTML` |
-| CORS    | Restricted by `ALLOWED_ORIGINS` |
-| Auth    | Supabase JWT verified server-side on protected routes |
-| RLS     | Enabled on all main tables so users only access their own data |
-| Secrets | `SUPABASE_SERVICE_ROLE_KEY` stays server-side only |
-| `.env`  | Ignored by git |
+| Topic         | Detail |
+|---------------|--------|
+| XSS           | All GitHub data is rendered via `textContent` or DOM APIs, never `innerHTML` |
+| CORS          | Restricted by `ALLOWED_ORIGINS` (plus localhost and `*.vercel.app` for convenience — tighten this once you're not actively using preview deployments) |
+| Rate limiting | `/api/issues` and `/api/trending-repos` are capped at 30 requests/minute per IP via `express-rate-limit`, since they're public routes proxying a single shared `GITHUB_TOKEN` |
+| Headers       | `vercel.json` sets `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` on every response |
+| Auth          | Supabase JWT verified server-side on protected routes |
+| RLS           | Enabled on all main tables so users only access their own data |
+| Secrets       | `SUPABASE_SERVICE_ROLE_KEY` stays server-side only |
+| `.env`        | Ignored by git |
 
 The Supabase anon key in `supabase-client.js` is intentional and safe only because RLS is enabled.
+
+> **Note:** the rate limiter uses an in-memory store, so on Vercel's serverless runtime it's enforced per warm instance, not globally across every instance. It stops casual abuse and accidental loops; it isn't a substitute for a shared store (e.g. Upstash Redis) if you need hard guarantees under real traffic.
+
+---
+
+## SEO / Social Sharing
+
+Every page ships a canonical URL, Open Graph tags, and Twitter Card tags, plus a shared `og-image.png` (1200×630).
+
+**Before deploying, find-and-replace `https://YOUR-DOMAIN.vercel.app`** across all HTML files with your real deployed domain — these are static meta tags and can't be computed at request time. Auth-gated pages (`onboarding.html`, `find-issues.html`, `saveissue.html`, `auth-callback.html`, `reset-password.html`, `404.html`) are marked `noindex` so search engines don't index pages that require a session.
 
 ---
 
 ## Known Limitations
 
-- In-memory cache is per-process, so multiple backend instances have separate caches.
+- In-memory cache and rate limiter are per-process, so multiple backend instances have separate state.
 - `User_Skills` updates use delete-then-insert instead of a transaction.
 - GitHub Search API can return slightly stale results for a few minutes.

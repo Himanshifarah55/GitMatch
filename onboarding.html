@@ -5,6 +5,19 @@
     <meta name="description" content="Tell GitMatch which languages you know and your experience level to get personalised issue matches.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Build Your Stack | GitMatch</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="canonical" href="https://YOUR-DOMAIN.vercel.app/onboarding.html">
+    <meta name="robots" content="noindex">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Build Your Stack | GitMatch">
+    <meta property="og:description" content="Tell GitMatch which languages you know and your experience level to get personalised issue matches.">
+    <meta property="og:url" content="https://YOUR-DOMAIN.vercel.app/onboarding.html">
+    <meta property="og:image" content="https://YOUR-DOMAIN.vercel.app/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Build Your Stack | GitMatch">
+    <meta name="twitter:description" content="Tell GitMatch which languages you know and your experience level to get personalised issue matches.">
+    <meta name="twitter:image" content="https://YOUR-DOMAIN.vercel.app/og-image.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -188,6 +201,14 @@
             font-weight: 600;
             margin-bottom: 20px;
             display: none;
+        }
+
+        @media (max-width: 480px) {
+            .onboarding-card { padding: 24px 18px; border-radius: 20px; }
+            .header h1 { font-size: 24px; }
+            .language-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); max-height: 200px; }
+            .level-btn { font-size: 11px; padding: 11px 6px; }
+            .btn-finish { font-size: 15px; padding: 15px; }
         }
     </style>
 </head>

@@ -5,6 +5,18 @@
     <meta name="description" content="Create a free GitMatch account and start finding open-source issues that match your skills.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up | GitMatch</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="canonical" href="https://YOUR-DOMAIN.vercel.app/signup.html">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Sign Up | GitMatch">
+    <meta property="og:description" content="Create a free GitMatch account and start finding open-source issues that match your skills.">
+    <meta property="og:url" content="https://YOUR-DOMAIN.vercel.app/signup.html">
+    <meta property="og:image" content="https://YOUR-DOMAIN.vercel.app/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sign Up | GitMatch">
+    <meta name="twitter:description" content="Create a free GitMatch account and start finding open-source issues that match your skills.">
+    <meta name="twitter:image" content="https://YOUR-DOMAIN.vercel.app/og-image.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -155,6 +167,15 @@
         .footer { text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-dim); }
         .footer a { color: white; text-decoration: none; font-weight: 700; transition: color 0.2s; }
         .footer a:hover { color: #60a5fa; }
+
+        @media (max-width: 480px) {
+            .glass-card { padding: 28px 20px; border-radius: 18px; }
+            .header h1 { font-size: 24px; }
+            .btn-github { font-size: 14px; padding: 13px; }
+            .form-group input { padding: 12px 14px; font-size: 14px; }
+            .btn-submit { padding: 14px; font-size: 15px; }
+            .email-notice { padding: 14px; font-size: 12px; }
+        }
     </style>
 </head>
 <body>

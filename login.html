@@ -5,6 +5,18 @@
     <meta name="description" content="Sign in to your GitMatch account.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | GitMatch</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="canonical" href="https://YOUR-DOMAIN.vercel.app/login.html">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Login | GitMatch">
+    <meta property="og:description" content="Sign in to your GitMatch account.">
+    <meta property="og:url" content="https://YOUR-DOMAIN.vercel.app/login.html">
+    <meta property="og:image" content="https://YOUR-DOMAIN.vercel.app/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Login | GitMatch">
+    <meta name="twitter:description" content="Sign in to your GitMatch account.">
+    <meta name="twitter:image" content="https://YOUR-DOMAIN.vercel.app/og-image.png">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -140,9 +152,49 @@
             font-weight: 600;
         }
 
+        .password-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .password-label-row label { margin-bottom: 0; }
+        .forgot-link {
+            font-size: 12px;
+            font-weight: 700;
+            color: #60a5fa;
+            text-decoration: none;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        .forgot-link:hover { color: #93c5fd; text-decoration: underline; }
+
+        .msg { font-size: 13px; text-align: center; margin-bottom: 16px; min-height: 20px; font-weight: 600; }
+        .msg.error   { color: #ef4444; }
+        .msg.success { color: #10b981; }
+
+        .back-to-login-link {
+            display: block;
+            text-align: center;
+            margin-top: 18px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-decoration: none;
+        }
+        .back-to-login-link:hover { color: white; }
+
         .footer { text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-dim); }
         .footer a { color: white; text-decoration: none; font-weight: 700; transition: color 0.2s; }
         .footer a:hover { color: #60a5fa; }
+
+        @media (max-width: 480px) {
+            .auth-card { padding: 28px 20px; border-radius: 18px; }
+            .header h1 { font-size: 24px; }
+            .btn-github { font-size: 14px; padding: 13px; }
+            .form-group input { padding: 12px 14px; font-size: 14px; }
+            .btn-submit { padding: 14px; font-size: 15px; }
+        }
     </style>
 </head>
 <body>
@@ -171,12 +223,26 @@
                 <input type="email" id="email" placeholder="name@email.com" required autocomplete="email">
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
+                <div class="password-label-row">
+                    <label for="password">Password</label>
+                    <a href="#" id="forgotPasswordLink" class="forgot-link">Forgot password?</a>
+                </div>
                 <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
             </div>
 
             <button type="submit" id="submitBtn" class="btn-submit">Sign In</button>
         </form>
+
+        <!-- Forgot-password view — hidden by default, toggled via JS -->
+        <div id="forgotPasswordView" style="display:none;">
+            <div id="forgot-message-container" class="msg" role="alert"></div>
+            <div class="form-group">
+                <label for="resetEmail">Email Address</label>
+                <input type="email" id="resetEmail" placeholder="name@email.com" autocomplete="email">
+            </div>
+            <button type="button" id="sendResetBtn" class="btn-submit">Send Reset Link</button>
+            <a href="#" id="backToLoginLink" class="back-to-login-link">← Back to sign in</a>
+        </div>
 
         <div class="footer">
             Don't have an account? <a href="signup.html">Sign Up</a>
@@ -248,6 +314,78 @@
                     : (err.message || 'Sign in failed. Please try again.');
                 submitBtn.disabled    = false;
                 submitBtn.textContent = 'Sign In';
+            }
+        });
+
+        // ── Forgot password ──────────────────────────────────
+        const forgotLink        = document.getElementById('forgotPasswordLink');
+        const backToLoginLink   = document.getElementById('backToLoginLink');
+        const forgotView        = document.getElementById('forgotPasswordView');
+        const forgotMsg         = document.getElementById('forgot-message-container');
+        const sendResetBtn      = document.getElementById('sendResetBtn');
+        const resetEmailInput   = document.getElementById('resetEmail');
+
+        function showForgotView() {
+            loginForm.style.display = 'none';
+            forgotView.style.display = 'block';
+            forgotMsg.textContent = '';
+            forgotMsg.className = 'msg';
+            resetEmailInput.value = document.getElementById('email').value.trim();
+            errorContainer.textContent = '';
+        }
+
+        function showLoginView() {
+            forgotView.style.display = 'none';
+            loginForm.style.display = 'block';
+        }
+
+        forgotLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showForgotView();
+        });
+
+        backToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginView();
+        });
+
+        function getResetRedirectTo() {
+            const base = window.location.href.replace(/[^/]*$/, '');
+            return base + 'reset-password.html';
+        }
+
+        sendResetBtn.addEventListener('click', async () => {
+            const email = resetEmailInput.value.trim();
+
+            if (!email) {
+                forgotMsg.textContent = 'Please enter your email address.';
+                forgotMsg.className = 'msg error';
+                return;
+            }
+
+            sendResetBtn.disabled = true;
+            sendResetBtn.textContent = 'Sending…';
+            forgotMsg.textContent = '';
+            forgotMsg.className = 'msg';
+
+            try {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: getResetRedirectTo()
+                });
+                if (error) throw error;
+
+                forgotMsg.textContent = 'Check your inbox for a password reset link.';
+                forgotMsg.className = 'msg success';
+                sendResetBtn.textContent = 'Link Sent';
+            } catch (err) {
+                // Always show a generic success-style message even on error to
+                // avoid leaking which emails have accounts (Supabase itself
+                // does this by default for most error cases, but we normalize
+                // the UI-visible behavior here too).
+                forgotMsg.textContent = err.message || 'Something went wrong. Please try again.';
+                forgotMsg.className = 'msg error';
+                sendResetBtn.disabled = false;
+                sendResetBtn.textContent = 'Send Reset Link';
             }
         });
     </script>

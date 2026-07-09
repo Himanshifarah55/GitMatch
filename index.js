@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
 // Node 18+ (required by package.json "engines") ships a global fetch — no need for node-fetch.
 
@@ -66,6 +67,18 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '10kb' }));
+
+// ── Rate limiting ──────────────────────────────────────────
+// These two routes are public (no auth) and proxy to GitHub's API using a
+// single shared GITHUB_TOKEN, so an unlimited client could burn through the
+// whole app's GitHub quota. Cap requests per-IP to keep that from happening.
+const publicApiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,             // 30 requests per IP per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again shortly.' }
+});
 
 const CACHE = new Map();
 const TTL_ISSUES = 5 * 60 * 1000;
@@ -189,7 +202,7 @@ app.get('/api/get-profile', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/issues', async (req, res) => {
+app.post('/api/issues', publicApiLimiter, async (req, res) => {
   const { languages, level, page = 1, filterLang = 'All' } = req.body;
 
   if (!Array.isArray(languages) || languages.length === 0) {
@@ -261,7 +274,7 @@ app.post('/api/issues', async (req, res) => {
   }
 });
 
-app.get('/api/trending-repos', async (req, res) => {
+app.get('/api/trending-repos', publicApiLimiter, async (req, res) => {
   const skill = alphanumDash(req.query.skill || '');
 
   let q = 'stars:>1000';
@@ -323,3 +336,14 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+// ============================================================
+//  api/index.js — Vercel serverless entrypoint.
+//
+//  vercel.json rewrites /api/* and /health to this file. It simply
+//  re-exports the Express app defined in the project's index.js —
+//  Vercel's Node runtime knows how to invoke an Express app exported
+//  as a request handler.
+// ============================================================
+
+module.exports = require('../index.js');
