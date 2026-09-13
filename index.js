@@ -9,24 +9,40 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ── Env var check ──────────────────────────────────────────
+// Locally, a missing env var should stop the process immediately with a
+// clear message — that's the fastest feedback loop during `npm start`.
+// On Vercel, this file loads inside a serverless function; calling
+// process.exit(1) there kills the function invocation with an opaque
+// "FUNCTION_INVOCATION_FAILED" error instead of a readable response.
+// So on Vercel we instead flag it and let every route return a clean
+// 503 with a real error message.
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-REQUIRED_ENV.forEach((key) => {
-  if (!process.env[key]) {
-    console.error(`Missing required environment variable: ${key}`);
+const missingEnvVars = REQUIRED_ENV.filter((key) => !process.env[key]);
+
+if (missingEnvVars.length > 0) {
+  const message = `Missing required environment variable(s): ${missingEnvVars.join(', ')}`;
+  console.error(message);
+
+  if (!process.env.VERCEL) {
     process.exit(1);
   }
-});
+}
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+const isConfigured = missingEnvVars.length === 0;
+
+const supabase = isConfigured
+  ? createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+  : null;
 
 function githubHeaders() {
   const headers = { 'User-Agent': 'GitMatch-Server' };
@@ -68,6 +84,17 @@ app.use(cors({
 
 app.use(express.json({ limit: '10kb' }));
 
+// ── Fail cleanly on every route if env vars are missing ────
+// This only ever triggers on Vercel (local dev already exited above).
+app.use((req, res, next) => {
+  if (!isConfigured) {
+    return res.status(503).json({
+      error: `Server misconfigured — missing environment variable(s): ${missingEnvVars.join(', ')}`
+    });
+  }
+  next();
+});
+
 // ── Rate limiting ──────────────────────────────────────────
 // These two routes are public (no auth) and proxy to GitHub's API using a
 // single shared GITHUB_TOKEN, so an unlimited client could burn through the
@@ -107,7 +134,7 @@ if (require.main === module && !process.env.VERCEL) {
   }, 60 * 1000);
 }
 
-const alphanumDash = (str) => String(str).replace(/[^a-zA-Z0-9\-+#]/g, '');
+const alphanumDash = (str) => String(str).replace(/[^a-zA-Z0-9\-+# .]/g, '').trim();
 
 async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || '';
@@ -316,10 +343,11 @@ app.get('/api/trending-repos', publicApiLimiter, async (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json({
-    status: 'ok',
+    status: isConfigured ? 'ok' : 'misconfigured',
     cache_size: CACHE.size,
     uptime_seconds: Math.round(process.uptime()),
-    github_token: !!process.env.GITHUB_TOKEN
+    github_token: !!process.env.GITHUB_TOKEN,
+    ...(isConfigured ? {} : { missing_env_vars: missingEnvVars })
   });
 });
 
@@ -336,5 +364,3 @@ if (require.main === module) {
 }
 
 module.exports = app;
-
-

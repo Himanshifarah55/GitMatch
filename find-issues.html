@@ -25,6 +25,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="config.js"></script>
+    <script src="levels.js"></script>
+    <script src="toast.js"></script>
     <script src="toast.js"></script>
 
     <style>
@@ -548,7 +553,7 @@
 
     <script>
         // ════════════════════════════════════════════════════════
-        //  Sidebar + filter pill state (was AngularJS DashboardCtrl)
+        //  Sidebar + filter pill state
         // ════════════════════════════════════════════════════════
         const sidebar = {
             languages: [],
@@ -562,6 +567,12 @@
             langs: ['All'],
             active: 'All'
         };
+
+        // Prefs are cached in localStorage per-user so one account can never
+        // read another account's cached stack on a shared browser.
+        function prefsKey(userId) {
+            return `userPrefs:${userId}`;
+        }
 
         function renderStackChips() {
             const container = document.getElementById('stackChips');
@@ -609,37 +620,17 @@
         }
 
         function setFilter(lang) {
-            if (filters.active === lang || window._isLoading) return;
+            if (filters.active === lang || isLoading) return;
             filters.active = lang;
             renderFilterPills();
-            window._activeLangFilter = lang;
-            window._currentPage = 1;
-            window._fetchIssues(true);
+            activeLangFilter = lang;
+            currentPage = 1;
+            fetchIssues(true);
         }
 
-        function setPrefsUI(prefs) {
-            sidebar.languages = prefs.languages || [];
-            filters.langs = ['All', ...(prefs.languages || [])];
-            filters.active = 'All';
-
-            const levelMap = {
-                'good first issue': { label: 'GOOD FIRST ISSUE', style: { background: '#065f46' } },
-                'help wanted': { label: 'HELP WANTED', style: { background: '#92400e' } },
-                enhancement: { label: 'ENHANCEMENT', style: { background: '#581c87' } }
-            };
-
-            const lv = levelMap[prefs.level] || {
-                label: (prefs.level || '-').toUpperCase(),
-                style: {}
-            };
-
-            sidebar.levelLabel = lv.label;
-            sidebar.levelStyle = lv.style;
-
-            renderStackChips();
-            renderLevelBadge();
-            renderSidebarStats();
-            renderFilterPills();
+        function difficultyInfo(level) {
+            const display = getDifficultyDisplay(level);
+            return { label: display.text, cls: display.cls };
         }
 
         function setIssueCountUI(n) {
@@ -669,15 +660,14 @@
         let currentPage = 1;
         let isLoading = false;
         let allLoaded = false;
+        let activeLangFilter = 'All';
         const PAGE_SIZE = 30;
-
-        window._isLoading = false;
-        window._activeLangFilter = 'All';
-        window._currentPage = 1;
 
         async function handleLogout() {
             await supabase.auth.signOut();
-            localStorage.removeItem('userPrefs');
+            if (currentUserId) {
+                localStorage.removeItem(prefsKey(currentUserId));
+            }
             window.location.replace('login.html');
         }
 
@@ -718,13 +708,13 @@
         document.getElementById('loadMoreBtn').addEventListener('click', () => {
             if (!isLoading && !allLoaded && userPrefs) {
                 currentPage++;
-                window._currentPage = currentPage;
-                window._fetchIssues(false);
+                fetchIssues(false);
             }
         });
 
         async function loadPrefs(session) {
-            const raw = localStorage.getItem('userPrefs');
+            const key = prefsKey(session.user.id);
+            const raw = localStorage.getItem(key);
             if (raw) {
                 try {
                     const p = JSON.parse(raw);
@@ -741,7 +731,7 @@
                     const profile = await r.json();
                     if (profile.languages && profile.languages.length > 0) {
                         const prefs = { languages: profile.languages, level: profile.level };
-                        localStorage.setItem('userPrefs', JSON.stringify(prefs));
+                        localStorage.setItem(key, JSON.stringify(prefs));
                         return prefs;
                     }
                 }
@@ -920,14 +910,10 @@
             }
         }
 
-        window._fetchIssues = async function fetchIssues(reset = false) {
+        async function fetchIssues(reset = false) {
             if (isLoading) return;
 
             isLoading = true;
-            window._isLoading = true;
-
-            const activeLangFilter = window._activeLangFilter || 'All';
-            currentPage = window._currentPage || 1;
 
             const refreshBtn = document.getElementById('refreshBtn');
             const loadMoreBtn = document.getElementById('loadMoreBtn');
@@ -936,7 +922,6 @@
             if (reset) {
                 allLoaded = false;
                 currentPage = 1;
-                window._currentPage = 1;
                 showState('<i class="fas fa-circle-notch fa-spin"></i>', 'Loading your matches...');
                 refreshBtn.disabled = true;
                 refreshBtn.classList.add('spinning');
@@ -1004,19 +989,18 @@
                 toast('Error loading issues.', 'error');
             } finally {
                 isLoading = false;
-                window._isLoading = false;
                 refreshBtn.disabled = false;
                 refreshBtn.classList.remove('spinning');
                 loadMoreBtn.disabled = false;
                 loadMoreBtn.textContent = 'Load More Issues';
             }
-        };
+        }
 
         function loadFeed() {
-            window._activeLangFilter = 'All';
-            window._currentPage = 1;
+            activeLangFilter = 'All';
+            currentPage = 1;
             setActiveFilterUI('All');
-            window._fetchIssues(true);
+            fetchIssues(true);
         }
 
         window.addEventListener('load', async () => {
@@ -1037,7 +1021,7 @@
             setPrefsUI(prefs);
 
             await loadSavedIds();
-            await window._fetchIssues(true);
+            await fetchIssues(true);
         });
     </script>
 </body>

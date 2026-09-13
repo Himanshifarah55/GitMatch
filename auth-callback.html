@@ -78,42 +78,77 @@
 
     <script src="supabase-client.js"></script>
     <script>
-        async function handleCallback() {
-            const heading = document.getElementById('heading');
-            const subtext = document.getElementById('subtext');
-            const spinner = document.getElementById('spinner');
-            const card = document.getElementById('card');
+        const heading = document.getElementById('heading');
+        const subtext = document.getElementById('subtext');
+        const spinner = document.getElementById('spinner');
+        const card = document.getElementById('card');
 
+        let resolved = false;
+
+        function showSuccess() {
+            if (resolved) return;
+            resolved = true;
+
+            spinner.style.display = 'none';
+            card.insertAdjacentHTML('afterbegin', '<span class="icon">OK</span>');
+            heading.textContent = "You're signed in!";
+            subtext.textContent = 'Taking you to your dashboard...';
+            setTimeout(() => {
+                window.location.replace('find-issues.html');
+            }, 1200);
+        }
+
+        function showExpired() {
+            if (resolved) return;
+            resolved = true;
+
+            spinner.style.display = 'none';
+            card.insertAdjacentHTML('afterbegin', '<span class="icon">!</span>');
+            heading.textContent = 'Link expired or already used';
+            subtext.innerHTML = 'This link is no longer valid. <a href="login.html" style="color:white;font-weight:700;">Sign in</a> or <a href="signup.html" style="color:white;font-weight:700;">create a new account</a>.';
+        }
+
+        function showError(err) {
+            if (resolved) return;
+            resolved = true;
+
+            console.error('Auth callback error:', err);
+            spinner.style.display = 'none';
+            heading.textContent = 'Something went wrong';
+            subtext.textContent = err?.message || 'Could not confirm your account. Please try again.';
+            card.insertAdjacentHTML('beforeend', '<a href="signup.html" class="btn">Back to Sign Up</a>');
+        }
+
+        // Primary path: Supabase fires SIGNED_IN once it finishes parsing the
+        // OAuth/email-confirmation token out of the URL (detectSessionInUrl
+        // handles this automatically). This is event-driven, so it works
+        // correctly regardless of network speed.
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                showSuccess();
+            }
+        });
+
+        // Fallback: if the event already fired before this listener attached,
+        // or nothing fires within a reasonable window (e.g. an actually
+        // expired/reused link), check directly and fail gracefully.
+        (async () => {
             try {
-                await new Promise((r) => setTimeout(r, 700));
+                await new Promise((r) => setTimeout(r, 2500));
+                if (resolved) return;
 
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) throw error;
 
                 if (session) {
-                    spinner.style.display = 'none';
-                    card.insertAdjacentHTML('afterbegin', '<span class="icon">OK</span>');
-                    heading.textContent = "You're signed in!";
-                    subtext.textContent = 'Taking you to your dashboard...';
-                    setTimeout(() => {
-                        window.location.replace('find-issues.html');
-                    }, 1200);
+                    showSuccess();
                 } else {
-                    spinner.style.display = 'none';
-                    card.insertAdjacentHTML('afterbegin', '<span class="icon">!</span>');
-                    heading.textContent = 'Link expired or already used';
-                    subtext.innerHTML = 'This link is no longer valid. <a href="login.html" style="color:white;font-weight:700;">Sign in</a> or <a href="signup.html" style="color:white;font-weight:700;">create a new account</a>.';
+                    showExpired();
                 }
             } catch (err) {
-                console.error('Auth callback error:', err);
-                spinner.style.display = 'none';
-                heading.textContent = 'Something went wrong';
-                subtext.textContent = err.message || 'Could not confirm your account. Please try again.';
-                card.insertAdjacentHTML('beforeend', '<a href="signup.html" class="btn">Back to Sign Up</a>');
+                showError(err);
             }
-        }
-
-        handleCallback();
+        })();
     </script>
 </body>
 </html>

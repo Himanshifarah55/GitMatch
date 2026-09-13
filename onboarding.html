@@ -23,6 +23,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="config.js"></script>
+    <script src="levels.js"></script>
+    <script src="toast.js"></script>
     <script src="toast.js"></script>
 
     <style>
@@ -246,24 +251,27 @@
     </div>
 
     <script>
-        const ALL_LANGUAGES = [
-            'JavaScript', 'TypeScript', 'Python', 'Java', 'C', 'C++', 'C#',
-            'Go', 'Rust', 'Ruby', 'PHP', 'Swift', 'Kotlin', 'Dart', 'Scala',
-            'Elixir', 'Haskell', 'Lua', 'Perl', 'R', 'Shell', 'PowerShell',
-            'HTML', 'CSS', 'Vue', 'Svelte', 'Astro', 'MATLAB', 'Julia',
-            'Clojure', 'Erlang', 'F#', 'OCaml', 'Nim', 'Zig', 'Assembly',
-            'Solidity', 'Move', 'Nix', 'HCL', 'Dockerfile', 'Makefile'
-        ].sort();
-
+        const MAX = 5;
         let selectedStack = [];
         let selectedLevel = 'beginner';
-        const MAX = 5;
+        let currentSessionUserId = null;
+
+        function prefsKey(userId) {
+            return `userPrefs:${userId}`;
+        }
+
+        const ALL_LANGUAGES = [
+            'JavaScript', 'TypeScript', 'Python', 'Java', 'C++', 'C', 'C#', 'Go', 'Rust',
+            'Ruby', 'PHP', 'Swift', 'Kotlin', 'Dart', 'HTML', 'CSS', 'Shell', 'R', 'Scala',
+            'Elixir', 'Haskell', 'Lua', 'Perl', 'Objective-C', 'MATLAB', 'Vue', 'React'
+        ];
 
         function renderGrid() {
-            const search = document.getElementById('langSearch').value.toLowerCase();
-            const filtered = ALL_LANGUAGES.filter((l) => l.toLowerCase().includes(search));
             const grid = document.getElementById('languageGrid');
+            const searchTerm = document.getElementById('langSearch').value.toLowerCase();
             grid.innerHTML = '';
+
+            const filtered = ALL_LANGUAGES.filter((l) => l.toLowerCase().includes(searchTerm));
 
             if (filtered.length === 0) {
                 grid.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:8px;">No languages match your search.</p>';
@@ -375,15 +383,9 @@
                     throw new Error(errData.error || `Server error ${response.status}`);
                 }
 
-                const levelToLabel = {
-                    beginner: 'good first issue',
-                    intermediate: 'help wanted',
-                    expert: 'enhancement'
-                };
-
-                localStorage.setItem('userPrefs', JSON.stringify({
+                localStorage.setItem(prefsKey(session.user.id), JSON.stringify({
                     languages: selectedStack,
-                    level: levelToLabel[selectedLevel] || 'good first issue'
+                    level: LEVEL_TO_GITHUB_LABEL[selectedLevel] || LEVEL_TO_GITHUB_LABEL.beginner
                 }));
 
                 toast('Stack saved! Redirecting...', 'success');
@@ -429,8 +431,10 @@
                 return;
             }
 
+            currentSessionUserId = session.user.id;
+
             let prefs = null;
-            const cached = localStorage.getItem('userPrefs');
+            const cached = localStorage.getItem(prefsKey(currentSessionUserId));
 
             if (cached) {
                 try {
@@ -444,20 +448,14 @@
             if (!prefs) {
                 prefs = await loadPrefsFromBackend(session);
                 if (prefs) {
-                    localStorage.setItem('userPrefs', JSON.stringify(prefs));
+                    localStorage.setItem(prefsKey(currentSessionUserId), JSON.stringify(prefs));
                 }
             }
 
             if (prefs) {
                 selectedStack = prefs.languages.slice(0, MAX);
 
-                const labelToLevel = {
-                    'good first issue': 'beginner',
-                    'help wanted': 'intermediate',
-                    enhancement: 'expert'
-                };
-
-                const level = labelToLevel[prefs.level] || 'beginner';
+                const level = GITHUB_LABEL_TO_LEVEL[prefs.level] || 'beginner';
                 selectedLevel = level;
 
                 document.querySelectorAll('.level-btn').forEach((b) => {

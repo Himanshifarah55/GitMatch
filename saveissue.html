@@ -25,6 +25,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-client.js"></script>
     <script src="config.js"></script>
+    <script src="levels.js"></script>
     <script src="toast.js"></script>
 
     <style>
@@ -383,10 +384,16 @@
     <script>
         let currentUserId = null;
 
+        function prefsKey(userId) {
+            return `userPrefs:${userId}`;
+        }
+
         // ── Auth logout ──────────────────────────────────────
         async function handleLogout() {
             await supabase.auth.signOut();
-            localStorage.removeItem('userPrefs');
+            if (currentUserId) {
+                localStorage.removeItem(prefsKey(currentUserId));
+            }
             window.location.replace('login.html');
         }
         document.getElementById('logout-btn').addEventListener('click', handleLogout);
@@ -413,15 +420,6 @@
             }));
         })();
 
-        // ── Difficulty helper ────────────────────────────────
-        function difficultyInfo(label) {
-            if (!label) return { text: 'Beginner', cls: 'beginner' };
-            const l = label.toLowerCase();
-            if (l.includes('help wanted') || l === 'intermediate') return { text: 'Intermediate', cls: 'intermediate' };
-            if (l.includes('enhancement') || l === 'expert')       return { text: 'Expert',       cls: 'expert' };
-            return { text: 'Beginner', cls: 'beginner' };
-        }
-
         // ── Render issues ────────────────────────────────────
         function renderIssues(issues) {
             const list = document.getElementById('issue-list');
@@ -443,7 +441,7 @@
 
             list.innerHTML = '';
             issues.forEach(issue => {
-                const diff    = difficultyInfo(issue.difficulty_label);
+                const diff    = getDifficultyDisplay(issue.difficulty_label);
                 const dateStr = new Date(issue.saved_at).toLocaleDateString('en-US', {
                     month: 'short', day: 'numeric', year: 'numeric'
                 });
