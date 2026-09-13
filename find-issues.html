@@ -1,7 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -626,6 +624,21 @@
             fetchIssues(true);
         }
 
+        function setPrefsUI(prefs) {
+            sidebar.languages = prefs.languages || [];
+            filters.langs = ['All', ...(prefs.languages || [])];
+            filters.active = 'All';
+
+            const display = getDifficultyDisplay(prefs.level);
+            sidebar.levelLabel = display.badgeLabel;
+            sidebar.levelStyle = { background: display.badgeBg };
+
+            renderStackChips();
+            renderLevelBadge();
+            renderSidebarStats();
+            renderFilterPills();
+        }
+
         function difficultyInfo(level) {
             const display = getDifficultyDisplay(level);
             return { label: display.text, cls: display.cls };
@@ -768,16 +781,6 @@
             document.getElementById('issue-count').textContent = '';
             setIssueCountUI('-');
             document.getElementById('loadMoreWrap').classList.remove('visible');
-        }
-
-        function difficultyInfo(level) {
-            if (level.includes('help wanted') || level === 'intermediate') {
-                return { label: 'Intermediate', cls: 'intermediate' };
-            }
-            if (level.includes('enhancement') || level === 'expert') {
-                return { label: 'Expert', cls: 'expert' };
-            }
-            return { label: 'Beginner', cls: 'beginner' };
         }
 
         function buildCard(issue) {
